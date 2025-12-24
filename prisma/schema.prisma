@@ -1,0 +1,226 @@
+// Prisma Schema for Vetted CV
+// v1.0 - Single-user, SQLite database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id                  String        @id @default("default-user")
+  completenessPercent Int           @default(0)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  personalInfo        PersonalInfo?
+  summary             String?
+  skills              Skill[]
+  experiences         Experience[]
+  projects            Project[]
+  educations          Education[]
+  certifications      Certification[]
+  achievements        Achievement[]
+  resumes             Resume[]
+  applications        Application[]
+}
+
+model PersonalInfo {
+  id        String  @id @default(cuid())
+  profileId String  @unique
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+  location  String?
+  linkedIn  String?
+  website   String?
+}
+
+model SkillCategory {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  skills Skill[]
+}
+
+model Skill {
+  id         String        @id @default(cuid())
+  name       String
+  categoryId String
+  category   SkillCategory @relation(fields: [categoryId], references: [id])
+  profileId  String
+  profile    Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Experience {
+  id          String    @id @default(cuid())
+  title       String
+  company     String
+  location    String?
+  startDate   DateTime
+  endDate     DateTime?
+  isCurrent   Boolean   @default(false)
+  description String
+  profileId   String
+  profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  order       Int       @default(0)
+}
+
+model Project {
+  id           String  @id @default(cuid())
+  name         String
+  description  String
+  url          String?
+  technologies String?
+  profileId    String
+  profile      Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  order        Int     @default(0)
+}
+
+model Education {
+  id          String    @id @default(cuid())
+  institution String
+  degree      String
+  field       String?
+  startDate   DateTime
+  endDate     DateTime?
+  gpa         String?
+  profileId   String
+  profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  order       Int       @default(0)
+}
+
+model Certification {
+  id            String    @id @default(cuid())
+  name          String
+  issuer        String
+  issueDate     DateTime
+  expiryDate    DateTime?
+  credentialId  String?
+  credentialUrl String?
+  profileId     String
+  profile       Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Achievement {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  date        DateTime?
+  profileId   String
+  profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model JobDescription {
+  id              String        @id @default(cuid())
+  title           String
+  company         String
+  descriptionText String
+  createdAt       DateTime      @default(now())
+
+  analysis     JobAnalysis?
+  resumes      Resume[]
+  applications Application[]
+}
+
+model JobAnalysis {
+  id               String         @id @default(cuid())
+  jobDescriptionId String         @unique
+  jobDescription   JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+
+  requiredSkills   String // JSON array
+  preferredSkills  String // JSON array
+  responsibilities String // JSON array
+  atsKeywords      String // JSON: { keyword: string, weight: number }[]
+  experienceLevel  String?
+
+  createdAt DateTime @default(now())
+}
+
+model Resume {
+  id               String          @id @default(cuid())
+  title            String
+  profileId        String
+  profile          Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  jobDescriptionId String?
+  jobDescription   JobDescription? @relation(fields: [jobDescriptionId], references: [id])
+  strategy         String
+  latexContent     String
+  version          Int             @default(1)
+  parentResumeId   String?
+  parentResume     Resume?         @relation("ResumeVersions", fields: [parentResumeId], references: [id])
+  versions         Resume[]        @relation("ResumeVersions")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scores       ResumeScore[]
+  changes      ResumeChange[]
+  applications Application[]
+}
+
+model ResumeScore {
+  id       String @id @default(cuid())
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  atsScore         Int // 0-100
+  recruiterScore   Int // 0-100
+  keywordMatchPct  Float
+  formattingScore  Int
+  readabilityScore Int
+  metricsScore     Int
+  verbsScore       Int
+
+  breakdown       String // JSON: detailed breakdown
+  missingKeywords String // JSON: string[]
+  recommendations String // JSON: string[]
+
+  scannedAt DateTime @default(now())
+}
+
+model ResumeChange {
+  id       String @id @default(cuid())
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  changeType  String // "keyword_added", "bullet_rewritten", "section_reordered"
+  description String
+  before      String?
+  after       String?
+
+  createdAt DateTime @default(now())
+}
+
+model Application {
+  id        String  @id @default(cuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  jobTitle         String
+  company          String
+  location         String?
+  jobDescriptionId String?
+  jobDescription   JobDescription? @relation(fields: [jobDescriptionId], references: [id])
+  resumeId         String?
+  resume           Resume?         @relation(fields: [resumeId], references: [id])
+
+  status        String    @default("applied") // applied, interview, offer, rejected, withdrawn
+  appliedDate   DateTime?
+  interviewDate DateTime?
+  offerDate     DateTime?
+  rejectionDate DateTime?
+
+  salary         String?
+  notes          String?
+  applicationUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+

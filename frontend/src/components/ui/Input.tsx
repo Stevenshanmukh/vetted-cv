@@ -11,8 +11,11 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, hint, icon, id, ...props }, ref) => {
+  ({ className, label, error, hint, icon, id, value, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+    
+    // Ensure value is always a string (never undefined/null) to prevent controlled/uncontrolled warnings
+    const inputValue = value === undefined || value === null ? '' : String(value);
 
     return (
       <div className="w-full">
@@ -36,6 +39,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               error && 'input-error',
               className
             )}
+            value={inputValue}
             {...props}
           />
         </div>

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useSidebar } from '@/context/SidebarContext';
 
 interface NavItem {
   href: string;
@@ -25,21 +26,27 @@ const secondaryItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { isCollapsed } = useSidebar();
 
   return (
-    <aside className="hidden lg:flex lg:flex-col w-64 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark">
+    <aside className={cn(
+      "hidden lg:flex lg:flex-col bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark transition-all duration-300",
+      isCollapsed ? "w-16" : "w-64"
+    )}>
       {/* Logo */}
-      <div className="p-6">
+      <div className={cn("p-6", isCollapsed && "p-4")}>
         <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
             <span className="material-symbols-outlined text-white">description</span>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-text-primary dark:text-text-primary-dark">
-              Vetted CV
-            </h1>
-            <p className="text-xs text-text-muted">Resume Intelligence</p>
-          </div>
+          {!isCollapsed && (
+            <div>
+              <h1 className="text-xl font-bold text-text-primary dark:text-text-primary-dark">
+                Vetted CV
+              </h1>
+              <p className="text-xs text-text-muted">Resume Intelligence</p>
+            </div>
+          )}
         </Link>
       </div>
 
@@ -52,10 +59,11 @@ export function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={cn('nav-link', isActive && 'nav-link-active')}
+                  className={cn('nav-link', isActive && 'nav-link-active', isCollapsed && 'justify-center')}
+                  title={isCollapsed ? item.label : undefined}
                 >
                   <span className="material-symbols-outlined">{item.icon}</span>
-                  {item.label}
+                  {!isCollapsed && <span>{item.label}</span>}
                 </Link>
               </li>
             );
@@ -72,10 +80,11 @@ export function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={cn('nav-link', isActive && 'nav-link-active')}
+                  className={cn('nav-link', isActive && 'nav-link-active', isCollapsed && 'justify-center')}
+                  title={isCollapsed ? item.label : undefined}
                 >
                   <span className="material-symbols-outlined">{item.icon}</span>
-                  {item.label}
+                  {!isCollapsed && <span>{item.label}</span>}
                 </Link>
               </li>
             );

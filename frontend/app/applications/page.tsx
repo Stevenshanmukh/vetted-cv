@@ -2,55 +2,140 @@
 
 import { useEffect, useState } from 'react';
 import { MainLayout } from '@/components/layout';
-import { Card, CardHeader, CardTitle, Button, Badge, Input } from '@/components/ui';
-import { api, Application, ApplicationInput, ApplicationStatus } from '@/services/api';
+import { Card, CardHeader, CardTitle, Button, Badge, Input, DatePicker, ResumeSelector } from '@/components/ui';
+import { api, Application, ApplicationInput, ApplicationStatus, Resume } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
 import { cn, getStatusColor, formatDate } from '@/lib/utils';
 
 const statusOptions: ApplicationStatus[] = ['applied', 'interview', 'offer', 'rejected', 'withdrawn'];
 
+// Get today's date in YYYY-MM-DD format
+function getTodayDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 export default function ApplicationsPage() {
   const { showToast } = useToast();
   const [applications, setApplications] = useState<Application[]>([]);
+  const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resumesLoading, setResumesLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<ApplicationStatus | 'all'>('all');
+  
+  // Form state with validation errors
   const [formData, setFormData] = useState<ApplicationInput>({
-    jobTitle: '',
     company: '',
+    jobTitle: '',
     location: '',
+    appliedDate: getTodayDate(),
+    resumeId: '',
     status: 'applied',
     notes: '',
-    applicationUrl: '',
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    loadApplications();
+    loadResumes();
+  }, []);
 
   useEffect(() => {
     loadApplications();
   }, [filter]);
 
   async function loadApplications() {
-    const status = filter === 'all' ? undefined : filter;
-    const result = await api.applications.getAll(status);
-    if (result.success && result.data) {
-      setApplications(result.data);
+    setLoading(true);
+    try {
+      // When filter is 'all', pass undefined to get all applications
+      const status = filter === 'all' ? undefined : filter;
+      const result = await api.applications.getAll(status);
+      if (result.success) {
+        // Handle both array and object responses
+        let data: Application[] = [];
+        if (Array.isArray(result.data)) {
+          data = result.data;
+        } else if (result.data && typeof result.data === 'object' && 'data' in result.data) {
+          data = Array.isArray(result.data.data) ? result.data.data : [];
+        }
+        
+        console.log(`Loaded ${data.length} applications for filter: ${filter}`, data);
+        setApplications(data);
+      } else {
+        console.error('Failed to load applications:', result.error);
+        showToast('error', result.error?.message || 'Failed to load applications');
+        setApplications([]);
+      }
+    } catch (error: any) {
+      console.error('Error loading applications:', error);
+      showToast('error', 'Failed to load applications');
+      setApplications([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
+
+  async function loadResumes() {
+    setResumesLoading(true);
+    const result = await api.resume.getHistory();
+    if (result.success && result.data) {
+      setResumes(result.data);
+    }
+    setResumesLoading(false);
+  }
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.company.trim()) {
+      errors.company = 'Company is required';
+    } else if (formData.company.length > 100) {
+      errors.company = 'Company must be less than 100 characters';
+    }
+
+    if (!formData.jobTitle.trim()) {
+      errors.jobTitle = 'Job title is required';
+    } else if (formData.jobTitle.length > 100) {
+      errors.jobTitle = 'Job title must be less than 100 characters';
+    }
+
+    if (!formData.appliedDate) {
+      errors.appliedDate = 'Applied date is required';
+    }
+
+    if (!formData.resumeId) {
+      errors.resumeId = 'Please select a resume';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setSubmitting(true);
     const result = await api.applications.create(formData);
+    setSubmitting(false);
+
     if (result.success) {
       showToast('success', 'Application added successfully!');
       setShowForm(false);
       setFormData({
-        jobTitle: '',
         company: '',
+        jobTitle: '',
         location: '',
+        appliedDate: getTodayDate(),
+        resumeId: '',
         status: 'applied',
         notes: '',
-        applicationUrl: '',
       });
+      setFormErrors({});
       loadApplications();
     } else {
       showToast('error', result.error?.message || 'Failed to add application');
@@ -84,6 +169,9 @@ export default function ApplicationsPage() {
     interview: applications.filter(a => a.status === 'interview').length,
     offer: applications.filter(a => a.status === 'offer').length,
   };
+
+  // Check if form can be submitted (resumes exist)
+  const canSubmit = resumes.length > 0 && !submitting;
 
   return (
     <MainLayout title="Application Tracker">
@@ -143,35 +231,78 @@ export default function ApplicationsPage() {
             </CardHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Job Title"
-                  value={formData.jobTitle}
-                  onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
-                  required
-                />
+                {/* Company */}
                 <Input
                   label="Company"
                   value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, company: e.target.value });
+                    if (formErrors.company) setFormErrors({ ...formErrors, company: '' });
+                  }}
+                  error={formErrors.company}
                   required
+                  maxLength={100}
                 />
+                
+                {/* Job Title */}
+                <Input
+                  label="Job Title"
+                  value={formData.jobTitle}
+                  onChange={(e) => {
+                    setFormData({ ...formData, jobTitle: e.target.value });
+                    if (formErrors.jobTitle) setFormErrors({ ...formErrors, jobTitle: '' });
+                  }}
+                  error={formErrors.jobTitle}
+                  required
+                  maxLength={100}
+                />
+                
+                {/* Location */}
                 <Input
                   label="Location"
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="e.g., Remote, San Francisco, CA"
                 />
-                <Input
-                  label="Application URL"
-                  type="url"
-                  value={formData.applicationUrl}
-                  onChange={(e) => setFormData({ ...formData, applicationUrl: e.target.value })}
+                
+                {/* Date Applied */}
+                <DatePicker
+                  label="Date Applied"
+                  value={formData.appliedDate}
+                  onChange={(date) => {
+                    setFormData({ ...formData, appliedDate: date });
+                    if (formErrors.appliedDate) setFormErrors({ ...formErrors, appliedDate: '' });
+                  }}
+                  error={formErrors.appliedDate}
+                  required
                 />
               </div>
-              <div className="flex justify-end gap-3">
+
+              {/* Resume Selector - Full width */}
+              <ResumeSelector
+                label="Resume Used"
+                resumes={resumes}
+                value={formData.resumeId}
+                onChange={(resumeId) => {
+                  setFormData({ ...formData, resumeId });
+                  if (formErrors.resumeId) setFormErrors({ ...formErrors, resumeId: '' });
+                }}
+                error={formErrors.resumeId}
+                loading={resumesLoading}
+                required
+              />
+
+              <div className="flex justify-end gap-3 pt-2">
                 <Button variant="secondary" type="button" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Add Application</Button>
+                <Button 
+                  type="submit" 
+                  loading={submitting}
+                  disabled={!canSubmit}
+                >
+                  Add Application
+                </Button>
               </div>
             </form>
           </Card>
@@ -219,7 +350,7 @@ export default function ApplicationsPage() {
                         {app.status}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-text-secondary dark:text-text-secondary-dark">
+                    <div className="flex items-center gap-4 text-sm text-text-secondary dark:text-text-secondary-dark flex-wrap">
                       <span className="flex items-center gap-1">
                         <span className="material-symbols-outlined text-base">business</span>
                         {app.company}
@@ -234,6 +365,13 @@ export default function ApplicationsPage() {
                         <span className="flex items-center gap-1">
                           <span className="material-symbols-outlined text-base">calendar_today</span>
                           {formatDate(app.appliedDate)}
+                        </span>
+                      )}
+                      {app.resume && (
+                        <span className="flex items-center gap-1 text-primary">
+                          <span className="material-symbols-outlined text-base">description</span>
+                          {app.resume.title}
+                          <span className="text-xs text-text-muted">v{app.resume.version}</span>
                         </span>
                       )}
                     </div>
@@ -269,4 +407,3 @@ export default function ApplicationsPage() {
     </MainLayout>
   );
 }
-

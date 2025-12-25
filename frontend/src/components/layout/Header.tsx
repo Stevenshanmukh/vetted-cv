@@ -1,6 +1,9 @@
 'use client';
 
+import { useState, useRef, useEffect } from 'react';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
+import { useSidebar } from '@/context/SidebarContext';
 
 interface HeaderProps {
   title?: string;
@@ -8,17 +11,53 @@ interface HeaderProps {
 
 export function Header({ title }: HeaderProps) {
   const { resolvedTheme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const { toggleSidebar, isCollapsed } = useSidebar();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
   };
 
+  const handleLogout = async () => {
+    setShowUserMenu(false);
+    await logout();
+  };
+
+  // Get user initials
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-surface-light/80 dark:bg-surface-dark/80 backdrop-blur-sm border-b border-border-light dark:border-border-dark">
       <div className="flex items-center justify-between h-16 px-6">
-        {/* Mobile menu button */}
-        <button className="lg:hidden p-2 -ml-2 text-text-secondary hover:text-text-primary dark:text-text-secondary-dark dark:hover:text-text-primary-dark">
-          <span className="material-symbols-outlined">menu</span>
+        {/* Sidebar toggle button */}
+        <button 
+          onClick={toggleSidebar}
+          className="p-2 -ml-2 text-text-secondary hover:text-text-primary dark:text-text-secondary-dark dark:hover:text-text-primary-dark rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="Toggle sidebar"
+        >
+          <span className="material-symbols-outlined">
+            {isCollapsed ? 'menu' : 'menu_open'}
+          </span>
         </button>
 
         {/* Page title */}
@@ -47,15 +86,49 @@ export function Header({ title }: HeaderProps) {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full"></span>
           </button>
 
-          {/* User avatar */}
-          <button className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-sm font-medium text-primary">AJ</span>
-            </div>
-          </button>
+          {/* User menu */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-sm font-medium text-primary">
+                  {user ? (user.name ? getInitials(user.name) : user.email.charAt(0).toUpperCase()) : '?'}
+                </span>
+              </div>
+              <span className="hidden md:block text-sm font-medium text-text-primary dark:text-text-primary-dark">
+                {user?.name || user?.email}
+              </span>
+              <span className="material-symbols-outlined text-text-muted hidden md:block">
+                {showUserMenu ? 'expand_less' : 'expand_more'}
+              </span>
+            </button>
+
+            {/* Dropdown menu */}
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-border-light dark:border-border-dark py-1 z-50">
+                <div className="px-4 py-3 border-b border-border-light dark:border-border-dark">
+                  <p className="text-sm font-medium text-text-primary dark:text-text-primary-dark">
+                    {user?.name || 'User'}
+                  </p>
+                  <p className="text-xs text-text-muted truncate">
+                    {user?.email}
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-lg">logout</span>
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>
   );
 }
-

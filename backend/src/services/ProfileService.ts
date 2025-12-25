@@ -1,8 +1,6 @@
 import prisma from '../prisma';
 import { Profile, Skill, Experience, Project, Education, Certification, Achievement } from '@prisma/client';
 
-const DEFAULT_PROFILE_ID = 'default-user';
-
 export interface ProfileWithRelations extends Profile {
   personalInfo: {
     id: string;
@@ -44,11 +42,27 @@ export interface ProfileInput {
 
 export class ProfileService {
   /**
-   * Get the default profile, creating it if it doesn't exist
+   * Convert date string or Date to Date object
    */
-  async getProfile(): Promise<ProfileWithRelations> {
-    let profile = await prisma.profile.findUnique({
-      where: { id: DEFAULT_PROFILE_ID },
+  private parseDate(date: string | Date | null | undefined): Date | null {
+    if (!date) return null;
+    if (date instanceof Date) return date;
+    if (typeof date === 'string') {
+      const parsed = new Date(date);
+      if (isNaN(parsed.getTime())) {
+        throw new Error(`Invalid date format: ${date}`);
+      }
+      return parsed;
+    }
+    return null;
+  }
+
+  /**
+   * Get profile by ID
+   */
+  async getProfile(profileId: string): Promise<ProfileWithRelations | null> {
+    return prisma.profile.findUnique({
+      where: { id: profileId },
       include: {
         personalInfo: true,
         skills: {
@@ -61,50 +75,40 @@ export class ProfileService {
         achievements: true,
       },
     });
-
-    if (!profile) {
-      profile = await prisma.profile.create({
-        data: { id: DEFAULT_PROFILE_ID },
-        include: {
-          personalInfo: true,
-          skills: {
-            include: { category: true },
-          },
-          experiences: { orderBy: { order: 'asc' } },
-          projects: { orderBy: { order: 'asc' } },
-          educations: { orderBy: { order: 'asc' } },
-          certifications: true,
-          achievements: true,
-        },
-      });
-    }
-
-    return profile;
   }
 
   /**
    * Save profile data
    */
-  async saveProfile(input: ProfileInput): Promise<ProfileWithRelations> {
-    const profileId = DEFAULT_PROFILE_ID;
-
-    // Ensure profile exists
-    await prisma.profile.upsert({
-      where: { id: profileId },
-      create: { id: profileId },
-      update: {},
-    });
-
-    // Update personal info
+  async saveProfile(profileId: string, input: ProfileInput): Promise<ProfileWithRelations> {
+    // Update personal info - only if all required fields are present
     if (input.personalInfo) {
-      await prisma.personalInfo.upsert({
-        where: { profileId },
-        create: {
-          profileId,
-          ...input.personalInfo,
-        },
-        update: input.personalInfo,
-      });
+      const { firstName, lastName, email } = input.personalInfo;
+      // Only update if we have all required fields
+      if (firstName && lastName && email) {
+        await prisma.personalInfo.upsert({
+          where: { profileId },
+          create: {
+            profileId,
+            firstName,
+            lastName,
+            email,
+            phone: input.personalInfo.phone || null,
+            location: input.personalInfo.location || null,
+            linkedIn: input.personalInfo.linkedIn || null,
+            website: input.personalInfo.website || null,
+          },
+          update: {
+            firstName,
+            lastName,
+            email,
+            phone: input.personalInfo.phone || null,
+            location: input.personalInfo.location || null,
+            linkedIn: input.personalInfo.linkedIn || null,
+            website: input.personalInfo.website || null,
+          },
+        });
+      }
     }
 
     // Update summary
@@ -143,7 +147,13 @@ export class ProfileService {
       await prisma.experience.deleteMany({ where: { profileId } });
       await prisma.experience.createMany({
         data: input.experiences.map((exp, index) => ({
-          ...exp,
+          title: exp.title,
+          company: exp.company,
+          location: exp.location || null,
+          startDate: this.parseDate(exp.startDate)!,
+          endDate: exp.isCurrent ? null : this.parseDate(exp.endDate),
+          isCurrent: exp.isCurrent || false,
+          description: exp.description,
           profileId,
           order: exp.order ?? index,
         })),
@@ -167,7 +177,12 @@ export class ProfileService {
       await prisma.education.deleteMany({ where: { profileId } });
       await prisma.education.createMany({
         data: input.educations.map((edu, index) => ({
-          ...edu,
+          institution: edu.institution,
+          degree: edu.degree,
+          field: edu.field || null,
+          startDate: this.parseDate(edu.startDate)!,
+          endDate: this.parseDate(edu.endDate),
+          gpa: edu.gpa || null,
           profileId,
           order: edu.order ?? index,
         })),
@@ -179,7 +194,12 @@ export class ProfileService {
       await prisma.certification.deleteMany({ where: { profileId } });
       await prisma.certification.createMany({
         data: input.certifications.map((cert) => ({
-          ...cert,
+          name: cert.name,
+          issuer: cert.issuer,
+          issueDate: this.parseDate(cert.issueDate)!,
+          expiryDate: this.parseDate(cert.expiryDate),
+          credentialId: cert.credentialId || null,
+          credentialUrl: cert.credentialUrl || null,
           profileId,
         })),
       });
@@ -190,7 +210,9 @@ export class ProfileService {
       await prisma.achievement.deleteMany({ where: { profileId } });
       await prisma.achievement.createMany({
         data: input.achievements.map((ach) => ({
-          ...ach,
+          title: ach.title,
+          description: ach.description,
+          date: this.parseDate(ach.date),
           profileId,
         })),
       });
@@ -203,15 +225,17 @@ export class ProfileService {
       data: { completenessPercent: completeness.percent },
     });
 
-    return this.getProfile();
+    const profile = await this.getProfile(profileId);
+    if (!profile) {
+      throw new Error('Profile not found after save');
+    }
+    return profile;
   }
 
   /**
    * Calculate profile completeness
    */
-  async calculateCompleteness(
-    profileId: string = DEFAULT_PROFILE_ID
-  ): Promise<{ percent: number; missing: string[] }> {
+  async calculateCompleteness(profileId: string): Promise<{ percent: number; missing: string[] }> {
     const profile = await prisma.profile.findUnique({
       where: { id: profileId },
       include: {
@@ -307,4 +331,3 @@ export class ProfileService {
 }
 
 export const profileService = new ProfileService();
-

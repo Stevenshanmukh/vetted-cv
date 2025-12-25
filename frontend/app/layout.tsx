@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/context/ToastContext';
+import { AuthProvider } from '@/context/AuthContext';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -19,11 +20,12 @@ export default function RootLayout({
       <body className="antialiased">
         <ThemeProvider>
           <ToastProvider>
-            {children}
+            <AuthProvider>
+              {children}
+            </AuthProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
   );
 }
-

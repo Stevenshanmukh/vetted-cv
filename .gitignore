@@ -39,6 +39,12 @@ yarn-error.log*
 
 # Testing
 coverage/
+*.test.ts.snap
+
+# Test results and temporary files
+TEST_RESULTS.md
+test-comprehensive.ps1
+*.log
 
 # Misc
 *.tsbuildinfo

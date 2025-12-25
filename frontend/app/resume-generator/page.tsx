@@ -9,6 +9,46 @@ import { api, Resume, ResumeScore } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
 import { cn, getScoreColor, getScoreLabel } from '@/lib/utils';
 
+// Helper to normalize score data (handle JSON strings)
+function normalizeScore(score: ResumeScore): ResumeScore {
+  if (!score) return score;
+  
+  // If breakdown is a string, parse it
+  if (typeof score.breakdown === 'string') {
+    try {
+      score.breakdown = JSON.parse(score.breakdown);
+    } catch (e) {
+      console.error('Failed to parse breakdown:', e);
+      score.breakdown = {
+        ats: { keywordCoverage: 0, formatScore: 0, sectionScore: 0, lengthScore: 0 },
+        recruiter: { metricsScore: 0, actionVerbScore: 0, readabilityScore: 0 },
+      };
+    }
+  }
+  
+  // If missingKeywords is a string, parse it
+  if (typeof score.missingKeywords === 'string') {
+    try {
+      score.missingKeywords = JSON.parse(score.missingKeywords);
+    } catch (e) {
+      console.error('Failed to parse missingKeywords:', e);
+      score.missingKeywords = [];
+    }
+  }
+  
+  // If recommendations is a string, parse it
+  if (typeof score.recommendations === 'string') {
+    try {
+      score.recommendations = JSON.parse(score.recommendations);
+    } catch (e) {
+      console.error('Failed to parse recommendations:', e);
+      score.recommendations = [];
+    }
+  }
+  
+  return score;
+}
+
 function ResumeGeneratorContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -33,7 +73,7 @@ function ResumeGeneratorContent() {
         setResume(result.data);
         // Check if already has a score
         if (result.data.scores && result.data.scores.length > 0) {
-          setScore(result.data.scores[0]);
+          setScore(normalizeScore(result.data.scores[0]));
         }
       } else {
         showToast('error', 'Resume not found');
@@ -53,7 +93,7 @@ function ResumeGeneratorContent() {
     setScoring(false);
 
     if (result.success && result.data) {
-      setScore(result.data);
+      setScore(normalizeScore(result.data));
       showToast('success', 'Resume scored successfully!');
     } else {
       showToast('error', result.error?.message || 'Failed to score resume');
@@ -165,44 +205,46 @@ function ResumeGeneratorContent() {
                 </Card>
 
                 {/* ATS Breakdown */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>ATS Breakdown</CardTitle>
-                  </CardHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Keyword Coverage</span>
-                        <span className="font-medium">{score.breakdown.ats.keywordCoverage}%</span>
+                {score.breakdown && score.breakdown.ats && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>ATS Breakdown</CardTitle>
+                    </CardHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>Keyword Coverage</span>
+                          <span className="font-medium">{score.breakdown.ats.keywordCoverage || 0}%</span>
+                        </div>
+                        <Progress value={score.breakdown.ats.keywordCoverage || 0} size="sm" colorByScore />
                       </div>
-                      <Progress value={score.breakdown.ats.keywordCoverage} size="sm" colorByScore />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Format Score</span>
-                        <span className="font-medium">{score.breakdown.ats.formatScore}%</span>
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>Format Score</span>
+                          <span className="font-medium">{score.breakdown.ats.formatScore || 0}%</span>
+                        </div>
+                        <Progress value={score.breakdown.ats.formatScore || 0} size="sm" colorByScore />
                       </div>
-                      <Progress value={score.breakdown.ats.formatScore} size="sm" colorByScore />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Section Score</span>
-                        <span className="font-medium">{score.breakdown.ats.sectionScore}%</span>
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>Section Score</span>
+                          <span className="font-medium">{score.breakdown.ats.sectionScore || 0}%</span>
+                        </div>
+                        <Progress value={score.breakdown.ats.sectionScore || 0} size="sm" colorByScore />
                       </div>
-                      <Progress value={score.breakdown.ats.sectionScore} size="sm" colorByScore />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Length Score</span>
-                        <span className="font-medium">{score.breakdown.ats.lengthScore}%</span>
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>Length Score</span>
+                          <span className="font-medium">{score.breakdown.ats.lengthScore || 0}%</span>
+                        </div>
+                        <Progress value={score.breakdown.ats.lengthScore || 0} size="sm" colorByScore />
                       </div>
-                      <Progress value={score.breakdown.ats.lengthScore} size="sm" colorByScore />
                     </div>
-                  </div>
-                </Card>
+                  </Card>
+                )}
 
                 {/* Missing Keywords */}
-                {score.missingKeywords.length > 0 && (
+                {score.missingKeywords && Array.isArray(score.missingKeywords) && score.missingKeywords.length > 0 && (
                   <Card>
                     <CardHeader>
                       <CardTitle>Missing Keywords</CardTitle>
@@ -217,19 +259,21 @@ function ResumeGeneratorContent() {
                 )}
 
                 {/* Recommendations */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recommendations</CardTitle>
-                  </CardHeader>
-                  <ul className="space-y-2">
-                    {score.recommendations.map((rec, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="material-symbols-outlined text-primary text-lg">lightbulb</span>
-                        <span className="text-text-secondary dark:text-text-secondary-dark">{rec}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
+                {score.recommendations && Array.isArray(score.recommendations) && score.recommendations.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recommendations</CardTitle>
+                    </CardHeader>
+                    <ul className="space-y-2">
+                      {score.recommendations.map((rec, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <span className="material-symbols-outlined text-primary text-lg">lightbulb</span>
+                          <span className="text-text-secondary dark:text-text-secondary-dark">{rec}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
               </>
             ) : (
               <Card className="h-full flex flex-col items-center justify-center py-12">

@@ -1,6 +1,7 @@
 import prisma from '../prisma';
 import { ResumeScore } from '@prisma/client';
 import { NotFoundError } from '../middleware/errorHandler';
+import { openAIService } from './OpenAIService';
 
 // Action verbs for scoring
 const ACTION_VERBS = new Set([
@@ -62,7 +63,7 @@ export class ATSScorerService {
     }
 
     // Calculate scores
-    const scoreResult = this.calculateScores(
+    const scoreResult = await this.calculateScores(
       resume.latexContent,
       resume.jobDescription?.analysis?.atsKeywords || '[]'
     );
@@ -90,7 +91,7 @@ export class ATSScorerService {
   /**
    * Calculate all scores for a resume
    */
-  private calculateScores(latexContent: string, atsKeywordsJson: string): ScoreResult {
+  private async calculateScores(latexContent: string, atsKeywordsJson: string): Promise<ScoreResult> {
     const plainText = this.extractPlainText(latexContent);
     const bullets = this.extractBullets(latexContent);
     const wordCount = this.countWords(plainText);
@@ -121,14 +122,15 @@ export class ATSScorerService {
       metricsScore * 0.4 + actionVerbScore * 0.3 + readabilityScore * 0.3
     );
 
-    // Generate recommendations
-    const recommendations = this.generateRecommendations(
+    // Generate recommendations (with AI if available)
+    const recommendations = await this.generateRecommendations(
       atsScore,
       recruiterScore,
       missingKeywords,
       hasSections,
       metricsScore,
-      actionVerbScore
+      actionVerbScore,
+      plainText
     );
 
     return {
@@ -272,14 +274,51 @@ export class ATSScorerService {
     return Math.max(0, 100 - Math.abs(avgLength - 15) * 2);
   }
 
-  private generateRecommendations(
+  private async generateRecommendations(
     atsScore: number,
     recruiterScore: number,
     missingKeywords: string[],
     sections: string[],
     metricsScore: number,
-    actionVerbScore: number
-  ): string[] {
+    actionVerbScore: number,
+    resumeText?: string
+  ): Promise<string[]> {
+    // Try AI-powered recommendations first
+    if (resumeText && missingKeywords.length > 0) {
+      try {
+        const prompt = `Analyze this resume and provide 3-5 specific, actionable recommendations to improve ATS score and recruiter appeal.
+
+Resume Score: ATS ${atsScore}/100, Recruiter ${recruiterScore}/100
+Missing Keywords: ${missingKeywords.slice(0, 10).join(', ')}
+Metrics Score: ${metricsScore}/100
+Action Verb Score: ${actionVerbScore}/100
+
+Resume Content (first 500 words):
+${resumeText.substring(0, 500)}
+
+Provide concise, actionable recommendations (one sentence each). Focus on:
+1. How to naturally incorporate missing keywords
+2. Improving quantifiable achievements
+3. Strengthening action verbs
+4. Overall optimization tips
+
+Return as JSON array: ["recommendation 1", "recommendation 2", ...]`;
+
+        const aiRecs = await openAIService.callJSON<string[]>(prompt, {
+          temperature: 0.5,
+          maxTokens: 300,
+          useCache: false, // Don't cache as recommendations are score-specific
+        });
+
+        if (Array.isArray(aiRecs) && aiRecs.length > 0) {
+          return aiRecs.slice(0, 5);
+        }
+      } catch (error) {
+        console.warn('AI recommendations failed, using fallback:', error);
+      }
+    }
+
+    // Fallback to rule-based recommendations
     const recommendations: string[] = [];
 
     if (missingKeywords.length > 0) {

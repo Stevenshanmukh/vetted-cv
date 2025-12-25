@@ -2,8 +2,6 @@ import prisma from '../prisma';
 import { Application } from '@prisma/client';
 import { NotFoundError } from '../middleware/errorHandler';
 
-const DEFAULT_PROFILE_ID = 'default-user';
-
 export interface ApplicationInput {
   jobTitle: string;
   company: string;
@@ -14,7 +12,6 @@ export interface ApplicationInput {
   appliedDate?: string;
   salary?: string;
   notes?: string;
-  applicationUrl?: string;
 }
 
 export interface ApplicationStats {
@@ -29,18 +26,19 @@ export interface ApplicationStats {
 
 export class ApplicationService {
   /**
-   * Get all applications
+   * Get all applications for a user
    */
-  async getApplications(status?: string): Promise<Application[]> {
+  async getApplications(profileId: string, status?: string): Promise<Application[]> {
     const where: { profileId: string; status?: string } = {
-      profileId: DEFAULT_PROFILE_ID,
+      profileId,
     };
 
-    if (status) {
+    // Only add status filter if it's provided and not empty
+    if (status && status.trim() !== '') {
       where.status = status;
     }
 
-    return prisma.application.findMany({
+    const applications = await prisma.application.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
       include: {
@@ -48,14 +46,21 @@ export class ApplicationService {
         resume: true,
       },
     });
+
+    // Log for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔍 getApplications - profileId: ${profileId}, status: ${status || 'all'}, found: ${applications.length}`);
+    }
+
+    return applications;
   }
 
   /**
-   * Get application statistics
+   * Get application statistics for a user
    */
-  async getStats(): Promise<ApplicationStats> {
+  async getStats(profileId: string): Promise<ApplicationStats> {
     const applications = await prisma.application.findMany({
-      where: { profileId: DEFAULT_PROFILE_ID },
+      where: { profileId },
       orderBy: { updatedAt: 'desc' },
     });
 
@@ -87,10 +92,10 @@ export class ApplicationService {
   /**
    * Create an application
    */
-  async createApplication(input: ApplicationInput): Promise<Application> {
+  async createApplication(profileId: string, input: ApplicationInput): Promise<Application> {
     return prisma.application.create({
       data: {
-        profileId: DEFAULT_PROFILE_ID,
+        profileId,
         jobTitle: input.jobTitle,
         company: input.company,
         location: input.location,
@@ -100,7 +105,6 @@ export class ApplicationService {
         appliedDate: input.appliedDate ? new Date(input.appliedDate) : new Date(),
         salary: input.salary,
         notes: input.notes,
-        applicationUrl: input.applicationUrl,
       },
       include: {
         jobDescription: true,
@@ -110,12 +114,12 @@ export class ApplicationService {
   }
 
   /**
-   * Update an application
+   * Update an application (with ownership check)
    */
-  async updateApplication(id: string, input: Partial<ApplicationInput>): Promise<Application> {
+  async updateApplication(id: string, profileId: string, input: Partial<ApplicationInput>): Promise<Application> {
     const existing = await prisma.application.findUnique({ where: { id } });
     
-    if (!existing) {
+    if (!existing || existing.profileId !== profileId) {
       throw new NotFoundError('Application');
     }
 
@@ -150,9 +154,15 @@ export class ApplicationService {
   }
 
   /**
-   * Delete an application
+   * Delete an application (with ownership check)
    */
-  async deleteApplication(id: string): Promise<void> {
+  async deleteApplication(id: string, profileId: string): Promise<void> {
+    const existing = await prisma.application.findUnique({ where: { id } });
+    
+    if (!existing || existing.profileId !== profileId) {
+      throw new NotFoundError('Application');
+    }
+
     await prisma.application.delete({ where: { id } });
   }
 
@@ -169,4 +179,3 @@ export class ApplicationService {
 }
 
 export const applicationService = new ApplicationService();
-

@@ -160,49 +160,49 @@ export default function ProfileBuilderPage() {
         }
         
         setSummary(result.data.summary || '');
-        setSkills(groupSkills(result.data.skills));
+        setSkills(groupSkills(result.data.skills || []));
         
-        setExperiences(result.data.experiences.map(exp => ({
-          title: exp.title,
-          company: exp.company,
+        setExperiences((result.data.experiences || []).map(exp => ({
+          title: exp.title || '',
+          company: exp.company || '',
           location: exp.location || '',
-          startDate: formatDateForInput(exp.startDate),
+          startDate: formatDateForInput(exp.startDate) || '',
           endDate: exp.endDate ? formatDateForInput(exp.endDate) : '',
-          isCurrent: exp.isCurrent,
-          description: exp.description,
+          isCurrent: exp.isCurrent || false,
+          description: exp.description || '',
           order: exp.order || 0,
         })));
         
-        setProjects(result.data.projects.map(proj => ({
-          name: proj.name,
-          description: proj.description,
+        setProjects((result.data.projects || []).map(proj => ({
+          name: proj.name || '',
+          description: proj.description || '',
           url: proj.url || '',
           technologies: proj.technologies || '',
           order: proj.order || 0,
         })));
         
-        setEducations(result.data.educations.map(edu => ({
-          institution: edu.institution,
-          degree: edu.degree,
+        setEducations((result.data.educations || []).map(edu => ({
+          institution: edu.institution || '',
+          degree: edu.degree || '',
           field: edu.field || '',
-          startDate: formatDateForInput(edu.startDate),
+          startDate: formatDateForInput(edu.startDate) || '',
           endDate: edu.endDate ? formatDateForInput(edu.endDate) : '',
           gpa: edu.gpa || '',
           order: edu.order || 0,
         })));
         
-        setCertifications(result.data.certifications.map(cert => ({
-          name: cert.name,
-          issuer: cert.issuer,
-          issueDate: formatDateForInput(cert.issueDate),
+        setCertifications((result.data.certifications || []).map(cert => ({
+          name: cert.name || '',
+          issuer: cert.issuer || '',
+          issueDate: formatDateForInput(cert.issueDate) || '',
           expiryDate: cert.expiryDate ? formatDateForInput(cert.expiryDate) : '',
           credentialId: cert.credentialId || '',
           credentialUrl: cert.credentialUrl || '',
         })));
         
-        setAchievements(result.data.achievements.map(ach => ({
-          title: ach.title,
-          description: ach.description,
+        setAchievements((result.data.achievements || []).map(ach => ({
+          title: ach.title || '',
+          description: ach.description || '',
           date: ach.date ? formatDateForInput(ach.date) : '',
         })));
       }
@@ -220,9 +220,20 @@ export default function ProfileBuilderPage() {
 
   function groupSkills(skillsList: Profile['skills']) {
     const grouped: { categoryName: string; skills: string[] }[] = [];
+    
+    // Handle null, undefined, or non-array values
+    if (!skillsList || !Array.isArray(skillsList)) {
+      return grouped;
+    }
+    
     const categoryMap = new Map<string, string[]>();
     
     for (const skill of skillsList) {
+      // Ensure skill has required properties
+      if (!skill || !skill.category || !skill.name) {
+        continue;
+      }
+      
       const catName = skill.category.name;
       if (!categoryMap.has(catName)) {
         categoryMap.set(catName, []);
@@ -237,70 +248,262 @@ export default function ProfileBuilderPage() {
     return grouped;
   }
 
-  const buildFormData = (): ProfileInput => ({
-    personalInfo: {
-      firstName: personalInfo.firstName,
-      lastName: personalInfo.lastName,
-      email: personalInfo.email,
-      phone: personalInfo.phone || null,
-      location: personalInfo.location || null,
-      linkedIn: personalInfo.linkedIn || null,
-      website: personalInfo.website || null,
-    },
-    summary,
-    skills,
-    experiences: experiences.map((exp, i) => ({
-      title: exp.title,
-      company: exp.company,
-      location: exp.location || null,
-      startDate: exp.startDate,
-      endDate: exp.isCurrent ? null : (exp.endDate || null),
-      isCurrent: exp.isCurrent,
-      description: exp.description,
-      order: i,
-    })),
-    projects: projects.map((proj, i) => ({
-      name: proj.name,
-      description: proj.description,
-      url: proj.url || null,
-      technologies: proj.technologies || null,
-      order: i,
-    })),
-    educations: educations.map((edu, i) => ({
-      institution: edu.institution,
-      degree: edu.degree,
-      field: edu.field || null,
-      startDate: edu.startDate,
-      endDate: edu.endDate || null,
-      gpa: edu.gpa || null,
-      order: i,
-    })),
-    certifications: certifications.map(cert => ({
-      name: cert.name,
-      issuer: cert.issuer,
-      issueDate: cert.issueDate,
-      expiryDate: cert.expiryDate || null,
-      credentialId: cert.credentialId || null,
-      credentialUrl: cert.credentialUrl || null,
-    })),
-    achievements: achievements.map(ach => ({
-      title: ach.title,
-      description: ach.description,
-      date: ach.date || null,
-    })),
-  });
+  const buildFormData = (): ProfileInput => {
+    // Filter out empty experiences - ensure all required fields are non-empty
+    const validExperiences = experiences.filter(exp => {
+      if (!exp) return false;
+      const title = (exp.title || '').toString().trim();
+      const company = (exp.company || '').toString().trim();
+      const description = (exp.description || '').toString().trim();
+      const startDate = (exp.startDate || '').toString().trim();
+      return title.length > 0 && company.length > 0 && description.length > 0 && startDate.length > 0;
+    });
+    
+    // Filter out empty projects
+    const validProjects = projects.filter(proj => {
+      if (!proj) return false;
+      const name = (proj.name || '').toString().trim();
+      const description = (proj.description || '').toString().trim();
+      return name.length > 0 && description.length > 0;
+    });
+    
+    // Filter out empty educations
+    const validEducations = educations.filter(edu => {
+      if (!edu) return false;
+      const institution = (edu.institution || '').toString().trim();
+      const degree = (edu.degree || '').toString().trim();
+      const startDate = (edu.startDate || '').toString().trim();
+      return institution.length > 0 && degree.length > 0 && startDate.length > 0;
+    });
+    
+    // Filter out empty certifications
+    const validCertifications = certifications.filter(cert => {
+      if (!cert) return false;
+      const name = (cert.name || '').toString().trim();
+      const issuer = (cert.issuer || '').toString().trim();
+      const issueDate = (cert.issueDate || '').toString().trim();
+      return name.length > 0 && issuer.length > 0 && issueDate.length > 0;
+    });
+    
+    // Filter out empty achievements
+    const validAchievements = achievements.filter(ach => {
+      if (!ach) return false;
+      const title = (ach.title || '').toString().trim();
+      const description = (ach.description || '').toString().trim();
+      return title.length > 0 && description.length > 0;
+    });
+
+    // Only include personalInfo if it has all required fields filled out
+    const hasPersonalInfo = 
+      personalInfo.firstName?.trim() && 
+      personalInfo.lastName?.trim() && 
+      personalInfo.email?.trim();
+
+    const formData: any = {};
+    
+    // Only send personalInfo if it's complete
+    if (hasPersonalInfo) {
+      formData.personalInfo = {
+        firstName: personalInfo.firstName.trim(),
+        lastName: personalInfo.lastName.trim(),
+        email: personalInfo.email.trim(),
+        phone: personalInfo.phone?.trim() || null,
+        location: personalInfo.location?.trim() || null,
+        linkedIn: personalInfo.linkedIn?.trim() || null,
+        website: personalInfo.website?.trim() || null,
+      };
+    }
+
+    // Build the final form data object, only including defined values
+    const finalData: any = { ...formData };
+    
+    // Only add fields that have values
+    if (summary && summary.trim()) {
+      finalData.summary = summary.trim();
+    }
+    
+    if (skills.length > 0) {
+      finalData.skills = skills;
+    }
+    
+    if (validExperiences.length > 0) {
+      finalData.experiences = validExperiences.map((exp, i) => {
+        // Ensure startDate is not empty
+        const startDate = (exp.startDate || '').toString().trim();
+        let endDate: string | null = null;
+        if (!exp.isCurrent && exp.endDate) {
+          const endDateStr = (exp.endDate || '').toString().trim();
+          endDate = endDateStr || null;
+        }
+        
+        if (!startDate) {
+          console.error('Experience missing startDate:', exp);
+          throw new Error('Start date is required for experience');
+        }
+        
+        const location = (exp.location || '').toString().trim();
+        
+        return {
+          title: (exp.title || '').toString().trim(),
+          company: (exp.company || '').toString().trim(),
+          location: location || null,
+          startDate: startDate,
+          endDate: endDate,
+          isCurrent: Boolean(exp.isCurrent),
+          description: (exp.description || '').toString().trim(),
+          order: i,
+        };
+      });
+    }
+    
+    if (validProjects.length > 0) {
+      finalData.projects = validProjects.map((proj, i) => {
+        const url = (proj.url || '').toString().trim();
+        const technologies = (proj.technologies || '').toString().trim();
+        
+        return {
+          name: (proj.name || '').toString().trim(),
+          description: (proj.description || '').toString().trim(),
+          url: url || null,
+          technologies: technologies || null,
+          order: i,
+        };
+      });
+    }
+    
+    if (validEducations.length > 0) {
+      finalData.educations = validEducations.map((edu, i) => {
+        const startDate = (edu.startDate || '').toString().trim();
+        const endDate = (edu.endDate || '').toString().trim();
+        const field = (edu.field || '').toString().trim();
+        const gpa = (edu.gpa || '').toString().trim();
+        
+        if (!startDate) {
+          console.error('Education missing startDate:', edu);
+          throw new Error('Start date is required for education');
+        }
+        
+        return {
+          institution: (edu.institution || '').toString().trim(),
+          degree: (edu.degree || '').toString().trim(),
+          field: field || null,
+          startDate: startDate,
+          endDate: endDate || null,
+          gpa: gpa || null,
+          order: i,
+        };
+      });
+    }
+    
+    if (validCertifications.length > 0) {
+      finalData.certifications = validCertifications.map(cert => {
+        const issueDate = (cert.issueDate || '').toString().trim();
+        const expiryDate = (cert.expiryDate || '').toString().trim();
+        const credentialId = (cert.credentialId || '').toString().trim();
+        const credentialUrl = (cert.credentialUrl || '').toString().trim();
+        
+        if (!issueDate) {
+          console.error('Certification missing issueDate:', cert);
+          throw new Error('Issue date is required for certification');
+        }
+        
+        return {
+          name: (cert.name || '').toString().trim(),
+          issuer: (cert.issuer || '').toString().trim(),
+          issueDate: issueDate,
+          expiryDate: expiryDate || null,
+          credentialId: credentialId || null,
+          credentialUrl: credentialUrl || null,
+        };
+      });
+    }
+    
+    if (validAchievements.length > 0) {
+      finalData.achievements = validAchievements.map(ach => {
+        const date = (ach.date || '').toString().trim();
+        return {
+          title: (ach.title || '').toString().trim(),
+          description: (ach.description || '').toString().trim(),
+          date: date || null,
+        };
+      });
+    }
+    
+    return finalData;
+  };
 
   const handleSave = async () => {
-    setSaving(true);
-    const formData = buildFormData();
-    const result = await api.profile.save(formData);
-    setSaving(false);
+    try {
+      setSaving(true);
+      const formData = buildFormData();
+      
+      // Log the data being sent (development only)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Saving profile data:', JSON.stringify(formData, null, 2));
+      }
+      
+      // Validate required fields for current step
+      if (currentStep === 1 && (!formData.personalInfo?.firstName || !formData.personalInfo?.lastName || !formData.personalInfo?.email)) {
+        showToast('error', 'Please fill in all required personal information fields');
+        setSaving(false);
+        return;
+      }
+      
+      const result = await api.profile.save(formData);
+      setSaving(false);
 
-    if (result.success) {
-      setProfile(result.data!);
-      showToast('success', 'Profile saved successfully!');
-    } else {
-      showToast('error', result.error?.message || 'Failed to save profile');
+      if (result.success) {
+        setProfile(result.data!);
+        showToast('success', 'Profile saved successfully!');
+      } else {
+        // Better error message extraction
+        let errorMsg = 'Failed to save profile. Please check your input and try again.';
+        
+        if (result.error) {
+          // Check if error object has any properties
+          const errorKeys = Object.keys(result.error || {});
+          
+          if (errorKeys.length === 0) {
+            // Empty error object - might be a validation or server issue
+            errorMsg = 'Validation failed. Please check all required fields are filled correctly.';
+          } else if (result.error.message && result.error.message.trim()) {
+            errorMsg = result.error.message;
+          } else if (result.error.code) {
+            // Use code as fallback if message is empty
+            errorMsg = `Error: ${result.error.code}`;
+          }
+          
+          // Extract validation details if available
+          if (result.error.details && typeof result.error.details === 'object') {
+            const details = Object.entries(result.error.details)
+              .map(([field, errors]) => {
+                const errorList = Array.isArray(errors) ? errors : [errors];
+                return `${field}: ${errorList.join(', ')}`;
+              })
+              .join('; ');
+            
+            if (details) {
+              errorMsg = `Validation errors: ${details}`;
+            }
+          }
+        }
+        
+        showToast('error', errorMsg);
+        
+        // Log full result for debugging (only in development)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('❌ Save failed - Full result:', JSON.stringify(result, null, 2));
+          console.error('📤 Data sent:', JSON.stringify(formData, null, 2));
+          if (result.error && Object.keys(result.error).length === 0) {
+            console.warn('⚠️ Error object is empty - this might indicate a backend validation issue');
+            console.warn('Check backend logs for more details');
+          }
+        }
+      }
+    } catch (error: any) {
+      setSaving(false);
+      console.error('Save error:', error);
+      showToast('error', error.message || 'Something went wrong. Please try again later.');
     }
   };
 

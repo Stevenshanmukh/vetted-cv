@@ -19,8 +19,42 @@ const matchInputSchema = z.object({
 });
 
 /**
- * POST /api/job/analyze
- * Analyze a job description
+ * @swagger
+ * /api/job/analyze:
+ *   post:
+ *     summary: Analyze job description with AI
+ *     tags: [Job Analysis]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - company
+ *               - descriptionText
+ *             properties:
+ *               title:
+ *                 type: string
+ *               company:
+ *                 type: string
+ *               descriptionText:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Job analysis completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/JobDescription'
  */
 router.post(
   '/analyze',
@@ -61,8 +95,9 @@ router.post(
   validateRequest(matchInputSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const profileId = req.profileId!;
       const { jobDescriptionId } = req.body;
-      const result = await matchService.matchProfileToJob(jobDescriptionId);
+      const result = await matchService.matchProfileToJob(profileId, jobDescriptionId);
       
       res.json({
         success: true,

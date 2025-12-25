@@ -7,16 +7,15 @@ const router = Router();
 
 // Validation schemas
 const applicationInputSchema = z.object({
-  jobTitle: z.string().min(2).max(100),
   company: z.string().min(2).max(100),
+  jobTitle: z.string().min(2).max(100),
   location: z.string().max(100).optional(),
+  appliedDate: z.string().min(1, 'Applied date is required'),
+  resumeId: z.string().min(1, 'Resume is required'),
   jobDescriptionId: z.string().optional(),
-  resumeId: z.string().optional(),
   status: z.enum(['applied', 'interview', 'offer', 'rejected', 'withdrawn']).default('applied'),
-  appliedDate: z.string().optional(),
   salary: z.string().max(50).optional(),
   notes: z.string().max(2000).optional(),
-  applicationUrl: z.string().optional(),
 });
 
 const updateApplicationSchema = applicationInputSchema.partial();
@@ -27,8 +26,19 @@ const updateApplicationSchema = applicationInputSchema.partial();
  */
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const profileId = req.profileId!;
     const status = req.query.status as string | undefined;
-    const applications = await applicationService.getApplications(status);
+    
+    // Log for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📥 GET /api/applications - profileId: ${profileId}, status: ${status || 'all'}`);
+    }
+    
+    const applications = await applicationService.getApplications(profileId, status);
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Returning ${applications.length} applications`);
+    }
     
     res.json({
       success: true,
@@ -44,9 +54,10 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
  * GET /api/applications/stats
  * Get application statistics
  */
-router.get('/stats', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const stats = await applicationService.getStats();
+    const profileId = req.profileId!;
+    const stats = await applicationService.getStats(profileId);
     
     res.json({
       success: true,
@@ -67,7 +78,8 @@ router.post(
   validateRequest(applicationInputSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const application = await applicationService.createApplication(req.body);
+      const profileId = req.profileId!;
+      const application = await applicationService.createApplication(profileId, req.body);
       
       res.status(201).json({
         success: true,
@@ -89,7 +101,8 @@ router.put(
   validateRequest(updateApplicationSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const application = await applicationService.updateApplication(req.params.id, req.body);
+      const profileId = req.profileId!;
+      const application = await applicationService.updateApplication(req.params.id, profileId, req.body);
       
       res.json({
         success: true,
@@ -108,7 +121,8 @@ router.put(
  */
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await applicationService.deleteApplication(req.params.id);
+    const profileId = req.profileId!;
+    await applicationService.deleteApplication(req.params.id, profileId);
     
     res.json({
       success: true,
@@ -121,4 +135,3 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
 });
 
 export default router;
-

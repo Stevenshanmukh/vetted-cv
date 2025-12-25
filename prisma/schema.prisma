@@ -1,5 +1,5 @@
 // Prisma Schema for Vetted CV
-// v1.0 - Single-user, SQLite database
+// v2.0 - Multi-user with authentication
 
 generator client {
   provider = "prisma-client-js"
@@ -10,22 +10,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Profile {
-  id                  String        @id @default("default-user")
-  completenessPercent Int           @default(0)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
 
-  personalInfo        PersonalInfo?
-  summary             String?
-  skills              Skill[]
-  experiences         Experience[]
-  projects            Project[]
-  educations          Education[]
-  certifications      Certification[]
-  achievements        Achievement[]
-  resumes             Resume[]
-  applications        Application[]
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // bcrypt hashed
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile?
+}
+
+// ============================================
+// PROFILE & RESUME DATA
+// ============================================
+
+model Profile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completenessPercent Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  personalInfo   PersonalInfo?
+  summary        String?
+  skills         Skill[]
+  experiences    Experience[]
+  projects       Project[]
+  educations     Education[]
+  certifications Certification[]
+  achievements   Achievement[]
+  resumes        Resume[]
+  applications   Application[]
 }
 
 model PersonalInfo {
@@ -116,12 +137,16 @@ model Achievement {
   profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
 }
 
+// ============================================
+// JOB DESCRIPTIONS & ANALYSIS
+// ============================================
+
 model JobDescription {
-  id              String        @id @default(cuid())
+  id              String   @id @default(cuid())
   title           String
   company         String
   descriptionText String
-  createdAt       DateTime      @default(now())
+  createdAt       DateTime @default(now())
 
   analysis     JobAnalysis?
   resumes      Resume[]
@@ -141,6 +166,10 @@ model JobAnalysis {
 
   createdAt DateTime @default(now())
 }
+
+// ============================================
+// RESUMES & SCORING
+// ============================================
 
 model Resume {
   id               String          @id @default(cuid())
@@ -197,6 +226,10 @@ model ResumeChange {
   createdAt DateTime @default(now())
 }
 
+// ============================================
+// APPLICATIONS TRACKING
+// ============================================
+
 model Application {
   id        String  @id @default(cuid())
   profileId String
@@ -223,4 +256,3 @@ model Application {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-

@@ -4,14 +4,15 @@ A production-grade, single-user resume intelligence platform that analyzes job d
 
 ## Features
 
+- **User Authentication** - Secure email/password registration and login
 - **Profile Builder** - Comprehensive multi-step profile creation with skills, experience, education, and more
-- **Job Description Analysis** - AI-powered extraction of keywords, requirements, and responsibilities
+- **Job Description Analysis** - AI-powered extraction of keywords, requirements, and responsibilities using OpenAI GPT-4o-mini
 - **Match Analysis** - See how your profile matches against job requirements
 - **Resume Generation** - Create tailored resumes using 5 different strategies
-- **ATS & Recruiter Scoring** - Get instant feedback on resume optimization
-- **Application Tracker** - Track your job applications across different stages
+- **ATS & Recruiter Scoring** - Get instant feedback on resume optimization with AI-powered analysis
+- **Application Tracker** - Track your job applications across different stages with resume linking
 - **Dark Mode** - Full dark mode support
-- **Local Database** - All data stored locally with SQLite
+- **Production Ready** - Security headers, rate limiting, error handling, logging, API documentation, and more
 
 ## Tech Stack
 
@@ -27,8 +28,12 @@ A production-grade, single-user resume intelligence platform that analyzes job d
 - Node.js + Express.js
 - TypeScript
 - Prisma ORM
-- SQLite database
+- SQLite database (ready for PostgreSQL migration)
 - Zod validation
+- OpenAI API integration (GPT-4o-mini)
+- JWT authentication
+- Security middleware (Helmet, rate limiting, input sanitization)
+- Comprehensive error handling and logging
 
 ### Shared
 - TypeScript types and contracts
@@ -72,8 +77,21 @@ npm install
 ```
 
 3. Set up environment variables
+
+Create a `.env` file in the root directory:
 ```bash
-cp .env.example .env
+# Database
+DATABASE_URL="file:./prisma/dev.db"
+
+# JWT Secret (generate a random string)
+JWT_SECRET="your-secret-key-here"
+
+# OpenAI API Key (optional - will use mock AI if not provided)
+OPENAI_API_KEY="your-openai-api-key-here"
+
+# Server
+PORT=3001
+NODE_ENV=development
 ```
 
 4. Generate Prisma client
@@ -170,23 +188,37 @@ npm run dev
 - Action Verbs: 30%
 - Readability: 30%
 
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
+- `POST /api/auth/logout` - Logout user
+- `GET /api/auth/me` - Get current user
+
+### Monitoring
+- `GET /api/monitoring/health` - Health check endpoint
+- `GET /api/monitoring/metrics` - Application metrics
+
+### Backup
+- `GET /api/backup/export` - Export database backup
+- `POST /api/backup/import` - Import database backup
+
 ## Future Enhancements
 
-- [ ] User authentication
-- [ ] Cloud database migration
-- [ ] Real AI integration (GPT-4, Claude)
+- [ ] Social logins (Google, LinkedIn)
+- [ ] Password reset functionality
+- [ ] Cloud database migration (PostgreSQL)
 - [ ] PDF export
 - [ ] Resume comparison view
 - [ ] Interview tracking
 - [ ] Email notifications
-- [ ] Multi-user support
+- [ ] Resume templates
+- [ ] Multi-language support
 
 ## Known Limitations
 
-- Single-user only (no authentication)
-- Local SQLite database
-- Mock AI (not real LLM integration)
-- LaTeX output only (no direct PDF)
+- SQLite database (ready for PostgreSQL migration)
+- LaTeX output only (no direct PDF export)
+- Single database instance (no multi-tenancy)
 
 ## License
 

@@ -1,8 +1,7 @@
 import prisma from '../prisma';
 import { Resume } from '@prisma/client';
 import { NotFoundError } from '../middleware/errorHandler';
-
-const DEFAULT_PROFILE_ID = 'default-user';
+import { openAIService } from './OpenAIService';
 
 type ResumeStrategy = 'max_ats' | 'recruiter_readability' | 'career_switch' | 'promotion_internal' | 'stretch_role';
 
@@ -18,10 +17,10 @@ export class ResumeGeneratorService {
   /**
    * Generate a resume based on profile and job description
    */
-  async generateResume(jobDescriptionId: string, strategy: ResumeStrategy): Promise<Resume> {
+  async generateResume(profileId: string, jobDescriptionId: string, strategy: ResumeStrategy): Promise<Resume> {
     // Get profile
     const profile = await prisma.profile.findUnique({
-      where: { id: DEFAULT_PROFILE_ID },
+      where: { id: profileId },
       include: {
         personalInfo: true,
         skills: { include: { category: true } },
@@ -47,14 +46,20 @@ export class ResumeGeneratorService {
       throw new NotFoundError('Job description');
     }
 
-    // Generate LaTeX
-    const latexContent = this.generateLatex(profile, jobDescription, strategy);
+    // Generate LaTeX (try AI-enhanced, fallback to template-based)
+    let latexContent: string;
+    try {
+      latexContent = await this.generateLatexWithAI(profile, jobDescription, strategy);
+    } catch (error) {
+      console.warn('AI resume generation failed, using template:', error);
+      latexContent = this.generateLatex(profile, jobDescription, strategy);
+    }
 
     // Create resume record
     const resume = await prisma.resume.create({
       data: {
         title: `${jobDescription.title} at ${jobDescription.company}`,
-        profileId: DEFAULT_PROFILE_ID,
+        profileId,
         jobDescriptionId,
         strategy,
         latexContent,
@@ -65,24 +70,31 @@ export class ResumeGeneratorService {
   }
 
   /**
-   * Get resume by ID
+   * Get resume by ID (with ownership check)
    */
-  async getResume(id: string): Promise<Resume | null> {
-    return prisma.resume.findUnique({
+  async getResume(id: string, profileId?: string): Promise<Resume | null> {
+    const resume = await prisma.resume.findUnique({
       where: { id },
       include: {
         scores: { orderBy: { scannedAt: 'desc' }, take: 1 },
         jobDescription: true,
       },
     });
+
+    // If profileId provided, verify ownership
+    if (profileId && resume && resume.profileId !== profileId) {
+      return null;
+    }
+
+    return resume;
   }
 
   /**
-   * Get resume history
+   * Get resume history for a user
    */
-  async getResumeHistory(): Promise<Resume[]> {
+  async getResumeHistory(profileId: string): Promise<Resume[]> {
     return prisma.resume.findMany({
-      where: { profileId: DEFAULT_PROFILE_ID },
+      where: { profileId },
       orderBy: { createdAt: 'desc' },
       include: {
         scores: { orderBy: { scannedAt: 'desc' }, take: 1 },
@@ -92,14 +104,133 @@ export class ResumeGeneratorService {
   }
 
   /**
-   * Delete resume
+   * Delete resume (with ownership check)
    */
-  async deleteResume(id: string): Promise<void> {
+  async deleteResume(id: string, profileId: string): Promise<void> {
+    const resume = await prisma.resume.findUnique({ where: { id } });
+    if (!resume || resume.profileId !== profileId) {
+      throw new NotFoundError('Resume');
+    }
     await prisma.resume.delete({ where: { id } });
   }
 
   /**
-   * Generate LaTeX content
+   * Generate LaTeX content with AI optimization
+   */
+  private async generateLatexWithAI(
+    profile: {
+      personalInfo: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone?: string | null;
+        location?: string | null;
+        linkedIn?: string | null;
+        website?: string | null;
+      } | null;
+      summary?: string | null;
+      skills: { name: string; category: { name: string } }[];
+      experiences: {
+        title: string;
+        company: string;
+        location?: string | null;
+        startDate: Date;
+        endDate?: Date | null;
+        isCurrent: boolean;
+        description: string;
+      }[];
+      projects: { name: string; description: string; technologies?: string | null }[];
+      educations: {
+        institution: string;
+        degree: string;
+        field?: string | null;
+        startDate: Date;
+        endDate?: Date | null;
+        gpa?: string | null;
+      }[];
+      certifications: { name: string; issuer: string; issueDate: Date }[];
+      achievements: { title: string; description: string; date?: Date | null }[];
+    },
+    jobDescription: { title: string; descriptionText: string; analysis: { atsKeywords: string } | null },
+    strategy: ResumeStrategy
+  ): Promise<string> {
+    // Get ATS keywords from job analysis
+    const atsKeywords = jobDescription.analysis 
+      ? JSON.parse(jobDescription.analysis.atsKeywords) as { keyword: string; weight: number }[]
+      : [];
+
+    // Optimize summary with AI
+    let optimizedSummary = profile.summary || '';
+    if (profile.summary && atsKeywords.length > 0) {
+      try {
+        const summaryPrompt = `Rewrite this professional summary to be more ATS-friendly and aligned with the job requirements. Keep it concise (2-3 sentences), include relevant keywords naturally, and maintain authenticity.
+
+Original Summary:
+${profile.summary}
+
+Target Job: ${jobDescription.title}
+Key Keywords to incorporate: ${atsKeywords.slice(0, 10).map(k => k.keyword).join(', ')}
+
+Return only the rewritten summary, no explanations.`;
+
+        const aiSummary = await openAIService.call(summaryPrompt, {
+          temperature: 0.7,
+          maxTokens: 200,
+          useCache: false, // Don't cache summaries as they're job-specific
+        });
+        optimizedSummary = aiSummary.content.trim();
+      } catch (error) {
+        console.warn('AI summary optimization failed:', error);
+      }
+    }
+
+    // Optimize experience descriptions with AI
+    const optimizedExperiences = await Promise.all(
+      profile.experiences.map(async (exp) => {
+        if (!exp.description || atsKeywords.length === 0) return exp;
+
+        try {
+          const expPrompt = `Rewrite these job responsibilities to be more ATS-friendly and impactful. Use action verbs, include metrics/numbers where possible, and naturally incorporate relevant keywords. Keep 3-5 bullet points.
+
+Job Title: ${exp.title}
+Company: ${exp.company}
+Original Description:
+${exp.description}
+
+Target Job Keywords: ${atsKeywords.slice(0, 8).map(k => k.keyword).join(', ')}
+
+Return only the rewritten bullet points, one per line, starting with action verbs.`;
+
+          const aiDesc = await openAIService.call(expPrompt, {
+            temperature: 0.7,
+            maxTokens: 300,
+            useCache: false,
+          });
+          
+          return {
+            ...exp,
+            description: aiDesc.content.trim(),
+          };
+        } catch (error) {
+          console.warn(`AI optimization failed for ${exp.title}:`, error);
+          return exp;
+        }
+      })
+    );
+
+    // Use optimized profile
+    const optimizedProfile = {
+      ...profile,
+      summary: optimizedSummary,
+      experiences: optimizedExperiences,
+    };
+
+    // Generate LaTeX with optimized content
+    return this.generateLatex(optimizedProfile, jobDescription, strategy);
+  }
+
+  /**
+   * Generate LaTeX content (template-based, fallback)
    */
   private generateLatex(
     profile: {

@@ -24,16 +24,66 @@ const scoreInputSchema = z.object({
 });
 
 /**
- * POST /api/resume/generate
- * Generate a new resume
+ * Helper to parse score JSON fields
+ */
+function parseScoreJsonFields(score: {
+  breakdown: string;
+  missingKeywords: string;
+  recommendations: string;
+  [key: string]: unknown;
+}) {
+  return {
+    ...score,
+    breakdown: JSON.parse(score.breakdown),
+    missingKeywords: JSON.parse(score.missingKeywords),
+    recommendations: JSON.parse(score.recommendations),
+  };
+}
+
+/**
+ * @swagger
+ * /api/resume/generate:
+ *   post:
+ *     summary: Generate ATS-optimized resume
+ *     tags: [Resume]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - jobDescriptionId
+ *               - strategy
+ *             properties:
+ *               jobDescriptionId:
+ *                 type: string
+ *               strategy:
+ *                 type: string
+ *                 enum: [max_ats, recruiter_readability, career_switch, promotion_internal, stretch_role]
+ *     responses:
+ *       201:
+ *         description: Resume generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Resume'
  */
 router.post(
   '/generate',
   validateRequest(generateInputSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const profileId = req.profileId!;
       const { jobDescriptionId, strategy } = req.body;
-      const resume = await resumeGeneratorService.generateResume(jobDescriptionId, strategy);
+      const resume = await resumeGeneratorService.generateResume(profileId, jobDescriptionId, strategy);
       
       res.status(201).json({
         success: true,
@@ -47,18 +97,53 @@ router.post(
 );
 
 /**
- * POST /api/resume/score
- * Score a resume
+ * @swagger
+ * /api/resume/score:
+ *   post:
+ *     summary: Score resume for ATS and recruiter compatibility
+ *     tags: [Resume]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - resumeId
+ *             properties:
+ *               resumeId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Resume scored successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/ResumeScore'
  */
 router.post(
   '/score',
   validateRequest(scoreInputSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const profileId = req.profileId!;
       const { resumeId } = req.body;
+      
+      // Verify ownership
+      const resume = await resumeGeneratorService.getResume(resumeId, profileId);
+      if (!resume) {
+        throw new NotFoundError('Resume');
+      }
+
       const score = await atsScorerService.scoreResume(resumeId);
       
-      // Parse JSON fields
       res.json({
         success: true,
         data: parseScoreJsonFields(score),
@@ -74,9 +159,10 @@ router.post(
  * GET /api/resume/history
  * Get resume history
  */
-router.get('/history', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/history', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const resumes = await resumeGeneratorService.getResumeHistory();
+    const profileId = req.profileId!;
+    const resumes = await resumeGeneratorService.getResumeHistory(profileId);
     
     // Parse JSON fields in scores for each resume
     const resumesWithParsedScores = resumes.map((resume) => ({
@@ -95,29 +181,13 @@ router.get('/history', async (_req: Request, res: Response, next: NextFunction) 
 });
 
 /**
- * Helper to parse score JSON fields
- */
-function parseScoreJsonFields(score: {
-  breakdown: string;
-  missingKeywords: string;
-  recommendations: string;
-  [key: string]: unknown;
-}) {
-  return {
-    ...score,
-    breakdown: JSON.parse(score.breakdown),
-    missingKeywords: JSON.parse(score.missingKeywords),
-    recommendations: JSON.parse(score.recommendations),
-  };
-}
-
-/**
  * GET /api/resume/:id
  * Get resume by ID
  */
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const resume = await resumeGeneratorService.getResume(req.params.id);
+    const profileId = req.profileId!;
+    const resume = await resumeGeneratorService.getResume(req.params.id, profileId);
     
     if (!resume) {
       throw new NotFoundError('Resume');
@@ -145,7 +215,8 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
  */
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await resumeGeneratorService.deleteResume(req.params.id);
+    const profileId = req.profileId!;
+    await resumeGeneratorService.deleteResume(req.params.id, profileId);
     
     res.json({
       success: true,
@@ -163,7 +234,8 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
  */
 router.get('/:id/download', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const resume = await resumeGeneratorService.getResume(req.params.id);
+    const profileId = req.profileId!;
+    const resume = await resumeGeneratorService.getResume(req.params.id, profileId);
     
     if (!resume) {
       throw new NotFoundError('Resume');
@@ -180,4 +252,3 @@ router.get('/:id/download', async (req: Request, res: Response, next: NextFuncti
 });
 
 export default router;
-

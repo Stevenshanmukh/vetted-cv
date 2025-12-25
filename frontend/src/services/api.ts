@@ -18,7 +18,7 @@ export interface ApiResponse<T> {
   };
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 const REQUEST_TIMEOUT = 30000; // 30 seconds
@@ -57,6 +57,7 @@ async function fetchApi<T>(
         fetch(`${API_BASE}${endpoint}`, {
           ...options,
           signal: controller.signal,
+          credentials: 'include', // Include cookies for auth
           headers: {
             'Content-Type': 'application/json',
             ...options?.headers,
@@ -78,14 +79,36 @@ async function fetchApi<T>(
         // Try to parse error response
         try {
           const errorData = await response.json();
-          return {
-            success: false,
-            error: {
-              code: errorData.error?.code || `HTTP_${response.status}`,
-              message: errorData.error?.message || `Server error: ${response.status}`,
-              details: errorData.error?.details,
-            },
-          };
+          
+          // Handle different error response formats
+          if (errorData.error) {
+            return {
+              success: false,
+              error: {
+                code: errorData.error.code || `HTTP_${response.status}`,
+                message: errorData.error.message || errorData.error.code || `Server error: ${response.status}`,
+                details: errorData.error.details,
+              },
+            };
+          } else if (errorData.message) {
+            // Some APIs return error message directly
+            return {
+              success: false,
+              error: {
+                code: `HTTP_${response.status}`,
+                message: errorData.message,
+              },
+            };
+          } else {
+            // Fallback for unexpected error format
+            return {
+              success: false,
+              error: {
+                code: `HTTP_${response.status}`,
+                message: `Server error: ${response.status} ${response.statusText}`,
+              },
+            };
+          }
         } catch {
           return {
             success: false,
@@ -98,6 +121,22 @@ async function fetchApi<T>(
       }
 
       const data = await response.json();
+      
+      // Validate response structure
+      if (data && typeof data === 'object') {
+        // Ensure error object has proper structure if present
+        if (data.success === false && data.error && typeof data.error === 'object') {
+          if (Object.keys(data.error).length === 0) {
+            // Empty error object - this shouldn't happen, but handle it gracefully
+            console.warn('API returned empty error object:', data);
+            data.error = {
+              code: 'UNKNOWN_ERROR',
+              message: 'An unknown error occurred',
+            };
+          }
+        }
+      }
+      
       return data;
     } catch (fetchError: any) {
       clearTimeout(timeoutId);
@@ -345,16 +384,15 @@ export interface ApplicationStats {
 }
 
 export interface ApplicationInput {
-  jobTitle: string;
   company: string;
+  jobTitle: string;
   location?: string;
+  appliedDate: string; // Required - ISO date string
+  resumeId: string; // Required - must select a resume
   jobDescriptionId?: string;
-  resumeId?: string;
   status?: ApplicationStatus;
-  appliedDate?: string;
   salary?: string;
   notes?: string;
-  applicationUrl?: string;
 }
 
 /**

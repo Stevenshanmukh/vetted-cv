@@ -1,19 +1,26 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSidebar } from '@/context/SidebarContext';
+import { useToast } from '@/context/ToastContext';
+import { api } from '@/services/api';
 
 interface HeaderProps {
   title?: string;
 }
 
 export function Header({ title }: HeaderProps) {
+  const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const { user, logout } = useAuth();
   const { toggleSidebar, isCollapsed } = useSidebar();
+  const { showToast } = useToast();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
@@ -34,6 +41,31 @@ export function Header({ title }: HeaderProps) {
   const handleLogout = async () => {
     setShowUserMenu(false);
     await logout();
+  };
+
+  const handleClearProfile = async () => {
+    setClearing(true);
+    try {
+      const result = await api.profile.clear();
+      if (result.success) {
+        showToast('success', 'Profile cleared successfully');
+        setShowClearConfirm(false);
+        setShowUserMenu(false);
+        // Refresh the page to show empty profile
+        window.location.reload();
+      } else {
+        showToast('error', result.error?.message || 'Failed to clear profile');
+      }
+    } catch (error) {
+      showToast('error', 'Something went wrong');
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const handleSettings = () => {
+    setShowUserMenu(false);
+    router.push('/settings');
   };
 
   // Get user initials
@@ -116,6 +148,47 @@ export function Header({ title }: HeaderProps) {
                     {user?.email}
                   </p>
                 </div>
+
+                {/* Settings */}
+                <button
+                  onClick={handleSettings}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-text-primary dark:text-text-primary-dark hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-lg">settings</span>
+                  Settings
+                </button>
+
+                {/* Clear Profile */}
+                {!showClearConfirm ? (
+                  <button
+                    onClick={() => setShowClearConfirm(true)}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-warning hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-lg">delete_sweep</span>
+                    Clear Profile Data
+                  </button>
+                ) : (
+                  <div className="px-4 py-2 bg-warning/10">
+                    <p className="text-xs text-warning mb-2">Delete all profile data?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleClearProfile}
+                        disabled={clearing}
+                        className="flex-1 px-2 py-1 text-xs bg-warning text-white rounded hover:bg-warning/80 disabled:opacity-50"
+                      >
+                        {clearing ? 'Clearing...' : 'Yes, Clear'}
+                      </button>
+                      <button
+                        onClick={() => setShowClearConfirm(false)}
+                        className="flex-1 px-2 py-1 text-xs bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t border-border-light dark:border-border-dark my-1"></div>
 
                 <button
                   onClick={handleLogout}

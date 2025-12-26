@@ -19,7 +19,8 @@ export default function ResumeLibraryPage() {
   }, []);
 
   async function loadResumes() {
-    const result = await api.resume.getHistory();
+    // Only show resumes that have been saved to library
+    const result = await api.resume.getLibrary();
     if (result.success && result.data) {
       setResumes(result.data);
     }
@@ -42,6 +43,16 @@ export default function ResumeLibraryPage() {
     window.open(url, '_blank');
   };
 
+  const handleRemoveFromLibrary = async (id: string) => {
+    const result = await api.resume.removeFromLibrary(id);
+    if (result.success) {
+      showToast('success', 'Resume removed from library');
+      loadResumes();
+    } else {
+      showToast('error', 'Failed to remove from library');
+    }
+  };
+
   // Group resumes by company
   const resumesByCompany = resumes.reduce((acc, resume) => {
     const company = resume.jobDescription?.company || 'Other';
@@ -60,7 +71,7 @@ export default function ResumeLibraryPage() {
               Resume Library
             </h1>
             <p className="text-text-secondary dark:text-text-secondary-dark">
-              {resumes.length} resume{resumes.length !== 1 ? 's' : ''} in your library
+              {resumes.length} saved resume{resumes.length !== 1 ? 's' : ''} in your library
             </p>
           </div>
           <div className="flex gap-3">
@@ -107,11 +118,16 @@ export default function ResumeLibraryPage() {
               Your resume library is empty
             </h3>
             <p className="text-text-secondary dark:text-text-secondary-dark mb-6 max-w-md mx-auto">
-              Create tailored resumes for different job applications. Each resume is optimized for ATS and recruiter readability.
+              Resumes you save to your library will appear here. Create a new resume and check &quot;Save to Library&quot; to keep it for future use.
             </p>
-            <Link href="/job-analysis">
-              <Button icon="add" size="lg">Create Your First Resume</Button>
-            </Link>
+            <div className="flex gap-3 justify-center">
+              <Link href="/resume-history">
+                <Button variant="secondary" icon="history">View Recent Resumes</Button>
+              </Link>
+              <Link href="/job-analysis">
+                <Button icon="add" size="lg">Create New Resume</Button>
+              </Link>
+            </div>
           </Card>
         ) : view === 'grid' ? (
           // Grid View
@@ -170,6 +186,13 @@ export default function ResumeLibraryPage() {
                                 View
                               </Button>
                             </Link>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              icon="bookmark_remove"
+                              onClick={() => handleRemoveFromLibrary(resume.id)}
+                              title="Remove from library"
+                            />
                             <Button
                               variant="ghost"
                               size="sm"

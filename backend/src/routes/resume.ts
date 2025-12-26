@@ -17,6 +17,7 @@ const generateInputSchema = z.object({
     'promotion_internal',
     'stretch_role',
   ]),
+  saveToLibrary: z.boolean().optional().default(false),
 });
 
 const scoreInputSchema = z.object({
@@ -82,8 +83,8 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const profileId = req.profileId!;
-      const { jobDescriptionId, strategy } = req.body;
-      const resume = await resumeGeneratorService.generateResume(profileId, jobDescriptionId, strategy);
+      const { jobDescriptionId, strategy, saveToLibrary } = req.body;
+      const resume = await resumeGeneratorService.generateResume(profileId, jobDescriptionId, strategy, saveToLibrary);
       
       res.status(201).json({
         success: true,
@@ -157,12 +158,13 @@ router.post(
 
 /**
  * GET /api/resume/history
- * Get resume history
+ * Get resume history (most recent resumes, optionally limited)
  */
 router.get('/history', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const profileId = req.profileId!;
-    const resumes = await resumeGeneratorService.getResumeHistory(profileId);
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    const resumes = await resumeGeneratorService.getResumeHistory(profileId, limit);
     
     // Parse JSON fields in scores for each resume
     const resumesWithParsedScores = resumes.map((resume) => ({
@@ -173,6 +175,77 @@ router.get('/history', async (req: Request, res: Response, next: NextFunction) =
     res.json({
       success: true,
       data: resumesWithParsedScores,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/resume/library
+ * Get resumes saved to library
+ */
+router.get('/library', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const profileId = req.profileId!;
+    const resumes = await resumeGeneratorService.getResumeLibrary(profileId);
+    
+    // Parse JSON fields in scores for each resume
+    const resumesWithParsedScores = resumes.map((resume) => ({
+      ...resume,
+      scores: (resume as { scores?: { breakdown: string; missingKeywords: string; recommendations: string }[] }).scores?.map(parseScoreJsonFields) || [],
+    }));
+
+    res.json({
+      success: true,
+      data: resumesWithParsedScores,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/resume/:id/save-to-library
+ * Save a resume to library
+ */
+router.post('/:id/save-to-library', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const profileId = req.profileId!;
+    const resume = await resumeGeneratorService.updateSavedToLibrary(req.params.id, profileId, true);
+    
+    if (!resume) {
+      throw new NotFoundError('Resume');
+    }
+
+    res.json({
+      success: true,
+      data: resume,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/resume/:id/remove-from-library
+ * Remove a resume from library
+ */
+router.post('/:id/remove-from-library', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const profileId = req.profileId!;
+    const resume = await resumeGeneratorService.updateSavedToLibrary(req.params.id, profileId, false);
+    
+    if (!resume) {
+      throw new NotFoundError('Resume');
+    }
+
+    res.json({
+      success: true,
+      data: resume,
       meta: { timestamp: new Date().toISOString() },
     });
   } catch (error) {

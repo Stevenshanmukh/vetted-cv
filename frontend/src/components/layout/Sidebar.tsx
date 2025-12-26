@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
 ];
 
 const secondaryItems: NavItem[] = [
+  { href: '/settings', label: 'Settings', icon: 'settings' },
   { href: '/help', label: 'Help & Support', icon: 'help' },
 ];
 

@@ -9,7 +9,16 @@ export function validateRequest<T>(schema: ZodSchema<T>) {
     try {
       req.body = schema.parse(req.body);
       next();
-    } catch (error) {
+    } catch (error: any) {
+      // Log validation errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ [Validation] Request validation failed:', {
+          path: req.path,
+          method: req.method,
+          body: req.body,
+          errors: error.errors || error.message,
+        });
+      }
       next(error);
     }
   };

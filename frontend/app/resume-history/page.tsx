@@ -18,7 +18,8 @@ export default function ResumeHistoryPage() {
   }, []);
 
   async function loadResumes() {
-    const result = await api.resume.getHistory();
+    // Only show the 3 most recent resumes
+    const result = await api.resume.getHistory(3);
     if (result.success && result.data) {
       setResumes(result.data);
     }
@@ -41,6 +42,16 @@ export default function ResumeHistoryPage() {
     window.open(url, '_blank');
   };
 
+  const handleSaveToLibrary = async (id: string) => {
+    const result = await api.resume.saveToLibrary(id);
+    if (result.success) {
+      showToast('success', 'Resume saved to library');
+      loadResumes();
+    } else {
+      showToast('error', 'Failed to save to library');
+    }
+  };
+
   return (
     <MainLayout title="Resume History">
       <div className="space-y-6">
@@ -48,15 +59,20 @@ export default function ResumeHistoryPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
-              Resume History
+              Recent Resumes
             </h1>
             <p className="text-text-secondary dark:text-text-secondary-dark">
-              View and manage all your generated resumes
+              Your 3 most recently created resumes
             </p>
           </div>
-          <Link href="/job-analysis">
-            <Button icon="add">New Resume</Button>
-          </Link>
+          <div className="flex gap-3">
+            <Link href="/resumes">
+              <Button variant="secondary" icon="folder">View Library</Button>
+            </Link>
+            <Link href="/job-analysis">
+              <Button icon="add">New Resume</Button>
+            </Link>
+          </div>
         </div>
 
         {/* Resume List */}
@@ -133,6 +149,23 @@ export default function ResumeHistoryPage() {
                           View
                         </Button>
                       </Link>
+                      {(resume as Resume & { savedToLibrary?: boolean }).savedToLibrary ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon="bookmark"
+                          className="text-primary"
+                          title="Saved to library"
+                        />
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon="bookmark_add"
+                          onClick={() => handleSaveToLibrary(resume.id)}
+                          title="Save to library"
+                        />
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"

@@ -1,11 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, Button, Input, Textarea, Badge } from '@/components/ui';
 import { api, JobDescription } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
+
+const STORAGE_KEY = 'jobAnalysisDraft';
+
+interface JobAnalysisDraft {
+  formData: {
+    title: string;
+    company: string;
+    descriptionText: string;
+  };
+  analysis: JobDescription | null;
+  savedAt: string;
+}
 
 export default function JobAnalysisPage() {
   const router = useRouter();
@@ -17,6 +29,46 @@ export default function JobAnalysisPage() {
     descriptionText: '',
   });
   const [analysis, setAnalysis] = useState<JobDescription | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const draft: JobAnalysisDraft = JSON.parse(saved);
+        setFormData(draft.formData);
+        setAnalysis(draft.analysis);
+        setHasDraft(true);
+      }
+    } catch (e) {
+      console.warn('Failed to load draft:', e);
+    }
+  }, []);
+
+  // Save draft to localStorage when form data or analysis changes
+  useEffect(() => {
+    if (formData.title || formData.company || formData.descriptionText || analysis) {
+      try {
+        const draft: JobAnalysisDraft = {
+          formData,
+          analysis,
+          savedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+      } catch (e) {
+        console.warn('Failed to save draft:', e);
+      }
+    }
+  }, [formData, analysis]);
+
+  const clearDraft = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setFormData({ title: '', company: '', descriptionText: '' });
+    setAnalysis(null);
+    setHasDraft(false);
+    showToast('success', 'Draft cleared');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +92,8 @@ export default function JobAnalysisPage() {
 
   const handleProceedToMatch = () => {
     if (analysis) {
+      // Clear draft when proceeding to next step
+      localStorage.removeItem(STORAGE_KEY);
       router.push(`/match-analysis?jobId=${analysis.id}`);
     }
   };
@@ -51,7 +105,12 @@ export default function JobAnalysisPage() {
         <Card>
           <CardHeader>
             <CardTitle>Analyze Job Description</CardTitle>
-            <span className="material-symbols-outlined text-primary">work</span>
+            <div className="flex items-center gap-2">
+              {hasDraft && !analysis && (
+                <Badge variant="info">Draft Restored</Badge>
+              )}
+              <span className="material-symbols-outlined text-primary">work</span>
+            </div>
           </CardHeader>
           
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -81,10 +140,17 @@ export default function JobAnalysisPage() {
               hint="Paste the complete job description including requirements, responsibilities, and qualifications."
             />
 
-            <div className="flex justify-end">
-              <Button type="submit" loading={loading} icon="psychology">
-                Analyze with AI
-              </Button>
+            <div className="flex justify-between">
+              {hasDraft && (
+                <Button type="button" variant="ghost" onClick={clearDraft} icon="delete">
+                  Clear Draft
+                </Button>
+              )}
+              <div className="ml-auto">
+                <Button type="submit" loading={loading} icon="psychology">
+                  Analyze with AI
+                </Button>
+              </div>
             </div>
           </form>
         </Card>

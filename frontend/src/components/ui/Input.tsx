@@ -11,11 +11,14 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, hint, icon, id, value, ...props }, ref) => {
+  ({ className, label, error, hint, icon, id, value, onChange, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
     
-    // Ensure value is always a string (never undefined/null) to prevent controlled/uncontrolled warnings
-    const inputValue = value === undefined || value === null ? '' : String(value);
+    // Only treat as controlled if value is explicitly provided (not undefined)
+    const hasValue = value !== undefined;
+    
+    // For controlled inputs, ensure value is always a string to prevent switching between controlled/uncontrolled
+    const inputValue = hasValue ? (value === null ? '' : String(value)) : undefined;
 
     return (
       <div className="w-full">
@@ -39,7 +42,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               error && 'input-error',
               className
             )}
-            value={inputValue}
+            {...(hasValue ? { value: inputValue } : {})}
+            {...(onChange ? { onChange } : {})}
             {...props}
           />
         </div>

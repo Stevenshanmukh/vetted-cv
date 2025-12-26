@@ -184,6 +184,7 @@ model Resume {
   parentResumeId   String?
   parentResume     Resume?         @relation("ResumeVersions", fields: [parentResumeId], references: [id])
   versions         Resume[]        @relation("ResumeVersions")
+  savedToLibrary   Boolean         @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

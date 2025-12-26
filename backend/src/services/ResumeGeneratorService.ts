@@ -17,7 +17,7 @@ export class ResumeGeneratorService {
   /**
    * Generate a resume based on profile and job description
    */
-  async generateResume(profileId: string, jobDescriptionId: string, strategy: ResumeStrategy): Promise<Resume> {
+  async generateResume(profileId: string, jobDescriptionId: string, strategy: ResumeStrategy, saveToLibrary: boolean = false): Promise<Resume> {
     // Get profile
     const profile = await prisma.profile.findUnique({
       where: { id: profileId },
@@ -63,6 +63,7 @@ export class ResumeGeneratorService {
         jobDescriptionId,
         strategy,
         latexContent,
+        savedToLibrary: saveToLibrary,
       },
     });
 
@@ -90,12 +91,49 @@ export class ResumeGeneratorService {
   }
 
   /**
-   * Get resume history for a user
+   * Get resume history for a user (most recent resumes, optionally limited)
    */
-  async getResumeHistory(profileId: string): Promise<Resume[]> {
+  async getResumeHistory(profileId: string, limit?: number): Promise<Resume[]> {
     return prisma.resume.findMany({
       where: { profileId },
       orderBy: { createdAt: 'desc' },
+      ...(limit ? { take: limit } : {}),
+      include: {
+        scores: { orderBy: { scannedAt: 'desc' }, take: 1 },
+        jobDescription: true,
+      },
+    });
+  }
+
+  /**
+   * Get resumes saved to library
+   */
+  async getResumeLibrary(profileId: string): Promise<Resume[]> {
+    return prisma.resume.findMany({
+      where: { 
+        profileId,
+        savedToLibrary: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        scores: { orderBy: { scannedAt: 'desc' }, take: 1 },
+        jobDescription: true,
+      },
+    });
+  }
+
+  /**
+   * Update savedToLibrary status
+   */
+  async updateSavedToLibrary(id: string, profileId: string, savedToLibrary: boolean): Promise<Resume | null> {
+    const resume = await prisma.resume.findUnique({ where: { id } });
+    if (!resume || resume.profileId !== profileId) {
+      return null;
+    }
+
+    return prisma.resume.update({
+      where: { id },
+      data: { savedToLibrary },
       include: {
         scores: { orderBy: { scannedAt: 'desc' }, take: 1 },
         jobDescription: true,

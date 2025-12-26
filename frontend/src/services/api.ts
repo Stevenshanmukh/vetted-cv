@@ -409,6 +409,10 @@ export const api = {
       }),
     getCompleteness: () =>
       fetchApi<{ percent: number; missing: string[] }>('/profile/completeness'),
+    clear: () =>
+      fetchApi<{ message: string }>('/profile/clear', {
+        method: 'DELETE',
+      }),
   },
 
   // Job Analysis
@@ -429,7 +433,7 @@ export const api = {
 
   // Resume
   resume: {
-    generate: (data: { jobDescriptionId: string; strategy: ResumeStrategy }) =>
+    generate: (data: { jobDescriptionId: string; strategy: ResumeStrategy; saveToLibrary?: boolean }) =>
       fetchApi<Resume>('/resume/generate', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -440,7 +444,12 @@ export const api = {
         body: JSON.stringify({ resumeId }),
       }),
     get: (id: string) => fetchApi<Resume>(`/resume/${id}`),
-    getHistory: () => fetchApi<Resume[]>('/resume/history'),
+    getHistory: (limit?: number) => fetchApi<Resume[]>(`/resume/history${limit ? `?limit=${limit}` : ''}`),
+    getLibrary: () => fetchApi<Resume[]>('/resume/library'),
+    saveToLibrary: (id: string) =>
+      fetchApi<Resume>(`/resume/${id}/save-to-library`, { method: 'POST' }),
+    removeFromLibrary: (id: string) =>
+      fetchApi<Resume>(`/resume/${id}/remove-from-library`, { method: 'POST' }),
     delete: (id: string) =>
       fetchApi<void>(`/resume/${id}`, { method: 'DELETE' }),
     getDownloadUrl: (id: string) => `${API_BASE}/resume/${id}/download`,

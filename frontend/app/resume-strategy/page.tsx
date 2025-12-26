@@ -69,6 +69,7 @@ function ResumeStrategyContent() {
   
   const [job, setJob] = useState<JobDescription | null>(null);
   const [selectedStrategy, setSelectedStrategy] = useState<ResumeStrategy | null>(null);
+  const [saveToLibrary, setSaveToLibrary] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
@@ -97,11 +98,12 @@ function ResumeStrategyContent() {
     const result = await api.resume.generate({
       jobDescriptionId: jobId,
       strategy: selectedStrategy,
+      saveToLibrary,
     });
     setGenerating(false);
 
     if (result.success && result.data) {
-      showToast('success', 'Resume generated successfully!');
+      showToast('success', `Resume generated${saveToLibrary ? ' and saved to library' : ''}!`);
       router.push(`/resume-generator?resumeId=${result.data.id}`);
     } else {
       showToast('error', result.error?.message || 'Failed to generate resume');
@@ -203,8 +205,24 @@ function ResumeStrategyContent() {
           </div>
         </div>
 
-        {/* Generate Button */}
-        <div className="flex justify-end">
+        {/* Options and Generate Button */}
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={saveToLibrary}
+              onChange={(e) => setSaveToLibrary(e.target.checked)}
+              className="w-5 h-5 rounded border-border-light dark:border-border-dark text-primary focus:ring-primary"
+            />
+            <div>
+              <span className="text-sm font-medium text-text-primary dark:text-text-primary-dark group-hover:text-primary">
+                Save to Library
+              </span>
+              <p className="text-xs text-text-muted">
+                Keep this resume in your library for future use
+              </p>
+            </div>
+          </label>
           <Button
             onClick={handleGenerate}
             disabled={!selectedStrategy}

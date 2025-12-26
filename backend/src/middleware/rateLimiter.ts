@@ -20,16 +20,19 @@ export const apiLimiter = rateLimit({
 
 /**
  * Strict rate limiter for auth endpoints
- * Limits: 5 requests per 15 minutes per IP
+ * Limits: 5 requests per 15 minutes per IP (production)
+ * Limits: 50 requests per 1 minute per IP (development - more lenient for testing)
  */
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 auth requests per windowMs
+  windowMs: process.env.NODE_ENV === 'production' ? 15 * 60 * 1000 : 1 * 60 * 1000, // 15 min (prod) or 1 min (dev)
+  max: process.env.NODE_ENV === 'production' ? 5 : 50, // More lenient in development
   message: {
     success: false,
     error: {
       code: 'RATE_LIMIT_EXCEEDED',
-      message: 'Too many authentication attempts, please try again in 15 minutes.',
+      message: process.env.NODE_ENV === 'production' 
+        ? 'Too many authentication attempts, please try again in 15 minutes.'
+        : 'Too many authentication attempts, please try again in 1 minute.',
     },
   },
   standardHeaders: true,

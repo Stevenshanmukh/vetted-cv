@@ -137,10 +137,11 @@ router.post(
     try {
       const profileId = req.profileId!;
       
-      // Log request data in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📥 Saving profile:', JSON.stringify(req.body, null, 2));
-      }
+      // Log request data
+      console.log('📥 [Route] Saving profile for profileId:', profileId);
+      console.log('📥 [Route] Request body:', JSON.stringify(req.body, null, 2));
+      console.log('📥 [Route] Certifications in request:', req.body.certifications?.length || 0, req.body.certifications);
+      console.log('📥 [Route] Achievements in request:', req.body.achievements?.length || 0, req.body.achievements);
       
       const profile = await profileService.saveProfile(profileId, req.body);
       
@@ -175,6 +176,28 @@ router.get('/completeness', async (req: Request, res: Response, next: NextFuncti
     res.json({
       success: true,
       data: result,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/profile/clear
+ * Clear all profile data (reset to empty)
+ */
+router.delete('/clear', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const profileId = req.profileId!;
+    
+    console.log(`🗑️ [Profile] Clearing all data for profile ${profileId}`);
+    
+    await profileService.clearProfile(profileId);
+    
+    res.json({
+      success: true,
+      data: { message: 'Profile cleared successfully' },
       meta: { timestamp: new Date().toISOString() },
     });
   } catch (error) {

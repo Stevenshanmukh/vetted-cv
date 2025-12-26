@@ -114,8 +114,8 @@ app.use('/api/job/match', aiLimiter);
 app.use('/api/monitoring', monitoringRoutes);
 
 // Protected API Routes (require authentication)
-// Cache GET requests for frequently accessed data
-app.use('/api/profile', requireAuth, cacheMiddleware(5 * 60 * 1000), profileRoutes); // 5 min cache
+// Note: Profile has no cache since it changes frequently during editing
+app.use('/api/profile', requireAuth, profileRoutes); // No cache (user edits frequently)
 app.use('/api/job', requireAuth, cacheMiddleware(2 * 60 * 1000), jobRoutes); // 2 min cache
 app.use('/api/resume', requireAuth, resumeRoutes); // No cache (dynamic content)
 app.use('/api/applications', requireAuth, cacheMiddleware(1 * 60 * 1000), applicationRoutes); // 1 min cache

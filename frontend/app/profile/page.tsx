@@ -140,75 +140,100 @@ export default function ProfileBuilderPage() {
   const [certifications, setCertifications] = useState<CertificationInput[]>([]);
   const [achievements, setAchievements] = useState<AchievementInput[]>([]);
 
-  useEffect(() => {
-    async function loadProfile() {
-      const result = await api.profile.get();
-      if (result.success && result.data) {
-        setProfile(result.data);
-        
-        // Map profile to form state
-        if (result.data.personalInfo) {
-          setPersonalInfo({
-            firstName: result.data.personalInfo.firstName || '',
-            lastName: result.data.personalInfo.lastName || '',
-            email: result.data.personalInfo.email || '',
-            phone: result.data.personalInfo.phone || '',
-            location: result.data.personalInfo.location || '',
-            linkedIn: result.data.personalInfo.linkedIn || '',
-            website: result.data.personalInfo.website || '',
-          });
-        }
-        
-        setSummary(result.data.summary || '');
-        setSkills(groupSkills(result.data.skills || []));
-        
-        setExperiences((result.data.experiences || []).map(exp => ({
-          title: exp.title || '',
-          company: exp.company || '',
-          location: exp.location || '',
-          startDate: formatDateForInput(exp.startDate) || '',
-          endDate: exp.endDate ? formatDateForInput(exp.endDate) : '',
-          isCurrent: exp.isCurrent || false,
-          description: exp.description || '',
-          order: exp.order || 0,
-        })));
-        
-        setProjects((result.data.projects || []).map(proj => ({
-          name: proj.name || '',
-          description: proj.description || '',
-          url: proj.url || '',
-          technologies: proj.technologies || '',
-          order: proj.order || 0,
-        })));
-        
-        setEducations((result.data.educations || []).map(edu => ({
-          institution: edu.institution || '',
-          degree: edu.degree || '',
-          field: edu.field || '',
-          startDate: formatDateForInput(edu.startDate) || '',
-          endDate: edu.endDate ? formatDateForInput(edu.endDate) : '',
-          gpa: edu.gpa || '',
-          order: edu.order || 0,
-        })));
-        
-        setCertifications((result.data.certifications || []).map(cert => ({
-          name: cert.name || '',
-          issuer: cert.issuer || '',
-          issueDate: formatDateForInput(cert.issueDate) || '',
-          expiryDate: cert.expiryDate ? formatDateForInput(cert.expiryDate) : '',
-          credentialId: cert.credentialId || '',
-          credentialUrl: cert.credentialUrl || '',
-        })));
-        
-        setAchievements((result.data.achievements || []).map(ach => ({
-          title: ach.title || '',
-          description: ach.description || '',
-          date: ach.date ? formatDateForInput(ach.date) : '',
-        })));
+  const loadProfile = async () => {
+    console.log('📖 [loadProfile] Loading profile from API...');
+    const result = await api.profile.get();
+    if (result.success && result.data) {
+      console.log('📖 [loadProfile] Profile loaded:', {
+        personalInfo: result.data.personalInfo ? 'yes' : 'no',
+        summary: result.data.summary?.length || 0,
+        skills: result.data.skills?.length || 0,
+        experiences: result.data.experiences?.length || 0,
+        projects: result.data.projects?.length || 0,
+        educations: result.data.educations?.length || 0,
+        certifications: result.data.certifications?.length || 0,
+        achievements: result.data.achievements?.length || 0,
+      });
+      setProfile(result.data);
+      
+      // Map profile to form state
+      if (result.data.personalInfo) {
+        setPersonalInfo({
+          firstName: result.data.personalInfo.firstName || '',
+          lastName: result.data.personalInfo.lastName || '',
+          email: result.data.personalInfo.email || '',
+          phone: result.data.personalInfo.phone || '',
+          location: result.data.personalInfo.location || '',
+          linkedIn: result.data.personalInfo.linkedIn || '',
+          website: result.data.personalInfo.website || '',
+        });
       }
-      setLoading(false);
+      
+      setSummary(result.data.summary || '');
+      setSkills(groupSkills(result.data.skills || []));
+      
+      // Load experiences
+      const loadedExps = (result.data.experiences || []).map(exp => ({
+        title: exp.title || '',
+        company: exp.company || '',
+        location: exp.location || '',
+        startDate: formatDateForInput(exp.startDate) || '',
+        endDate: exp.endDate ? formatDateForInput(exp.endDate) : '',
+        isCurrent: exp.isCurrent || false,
+        description: exp.description || '',
+        order: exp.order || 0,
+      }));
+      setExperiences(loadedExps);
+      
+      // Load projects
+      const loadedProjs = (result.data.projects || []).map(proj => ({
+        name: proj.name || '',
+        description: proj.description || '',
+        url: proj.url || '',
+        technologies: proj.technologies || '',
+        order: proj.order || 0,
+      }));
+      setProjects(loadedProjs);
+      
+      // Load educations
+      const loadedEdus = (result.data.educations || []).map(edu => ({
+        institution: edu.institution || '',
+        degree: edu.degree || '',
+        field: edu.field || '',
+        startDate: formatDateForInput(edu.startDate) || '',
+        endDate: edu.endDate ? formatDateForInput(edu.endDate) : '',
+        gpa: edu.gpa || '',
+        order: edu.order || 0,
+      }));
+      setEducations(loadedEdus);
+      
+      // Load certifications
+      const loadedCerts = (result.data.certifications || []).map(cert => ({
+        name: cert.name || '',
+        issuer: cert.issuer || '',
+        issueDate: formatDateForInput(cert.issueDate) || '',
+        expiryDate: cert.expiryDate ? formatDateForInput(cert.expiryDate) : '',
+        credentialId: cert.credentialId || '',
+        credentialUrl: cert.credentialUrl || '',
+      }));
+      setCertifications(loadedCerts);
+      
+      // Load achievements
+      const loadedAchs = (result.data.achievements || []).map(ach => ({
+        title: ach.title || '',
+        description: ach.description || '',
+        date: ach.date ? formatDateForInput(ach.date) : '',
+      }));
+      setAchievements(loadedAchs);
+      
+      console.log('✅ [loadProfile] All sections loaded successfully');
+    } else {
+      console.error('❌ [loadProfile] Failed to load profile:', result.error);
     }
+    setLoading(false);
+  };
 
+  useEffect(() => {
     loadProfile();
   }, []);
 
@@ -249,186 +274,232 @@ export default function ProfileBuilderPage() {
   }
 
   const buildFormData = (): ProfileInput => {
-    // Filter out empty experiences - ensure all required fields are non-empty
-    const validExperiences = experiences.filter(exp => {
+    console.log('🔨 [buildFormData] Building form data for step:', currentStep);
+    
+    // Helper function to map experience
+    const mapExperience = (exp: ExperienceInput, i: number) => {
+      const startDate = (exp.startDate || '').toString().trim();
+      let endDate: string | null = null;
+      if (!exp.isCurrent && exp.endDate) {
+        const endDateStr = (exp.endDate || '').toString().trim();
+        endDate = endDateStr || null;
+      }
+      const location = (exp.location || '').toString().trim();
+      
+      return {
+        title: (exp.title || '').toString().trim(),
+        company: (exp.company || '').toString().trim(),
+        location: location || null,
+        startDate: startDate,
+        endDate: endDate,
+        isCurrent: Boolean(exp.isCurrent),
+        description: (exp.description || '').toString().trim(),
+        order: i,
+      };
+    };
+    
+    // Helper function to map project
+    const mapProject = (proj: ProjectInput, i: number) => {
+      const url = (proj.url || '').toString().trim();
+      const technologies = (proj.technologies || '').toString().trim();
+      
+      return {
+        name: (proj.name || '').toString().trim(),
+        description: (proj.description || '').toString().trim(),
+        url: url || null,
+        technologies: technologies || null,
+        order: i,
+      };
+    };
+    
+    // Helper function to map education
+    const mapEducation = (edu: EducationInput, i: number) => {
+      const startDate = (edu.startDate || '').toString().trim();
+      const endDate = (edu.endDate || '').toString().trim();
+      const field = (edu.field || '').toString().trim();
+      const gpa = (edu.gpa || '').toString().trim();
+      
+      return {
+        institution: (edu.institution || '').toString().trim(),
+        degree: (edu.degree || '').toString().trim(),
+        field: field || null,
+        startDate: startDate,
+        endDate: endDate || null,
+        gpa: gpa || null,
+        order: i,
+      };
+    };
+    
+    // Helper function to map certification
+    const mapCertification = (cert: CertificationInput) => {
+      const issueDate = (cert.issueDate || '').toString().trim();
+      const expiryDate = (cert.expiryDate || '').toString().trim();
+      const credentialId = (cert.credentialId || '').toString().trim();
+      const credentialUrl = (cert.credentialUrl || '').toString().trim();
+      
+      return {
+        name: (cert.name || '').toString().trim(),
+        issuer: (cert.issuer || '').toString().trim(),
+        issueDate: issueDate,
+        expiryDate: expiryDate || null,
+        credentialId: credentialId || null,
+        credentialUrl: credentialUrl || null,
+      };
+    };
+    
+    // Helper function to map achievement
+    const mapAchievement = (ach: AchievementInput) => {
+      const date = (ach.date || '').toString().trim();
+      return {
+        title: (ach.title || '').toString().trim(),
+        description: (ach.description || '').toString().trim(),
+        date: date || null,
+      };
+    };
+    
+    // Filter functions for valid entries
+    const isValidExperience = (exp: ExperienceInput) => {
       if (!exp) return false;
       const title = (exp.title || '').toString().trim();
       const company = (exp.company || '').toString().trim();
       const description = (exp.description || '').toString().trim();
       const startDate = (exp.startDate || '').toString().trim();
       return title.length > 0 && company.length > 0 && description.length > 0 && startDate.length > 0;
-    });
+    };
     
-    // Filter out empty projects
-    const validProjects = projects.filter(proj => {
+    const isValidProject = (proj: ProjectInput) => {
       if (!proj) return false;
       const name = (proj.name || '').toString().trim();
       const description = (proj.description || '').toString().trim();
       return name.length > 0 && description.length > 0;
-    });
+    };
     
-    // Filter out empty educations
-    const validEducations = educations.filter(edu => {
+    const isValidEducation = (edu: EducationInput) => {
       if (!edu) return false;
       const institution = (edu.institution || '').toString().trim();
       const degree = (edu.degree || '').toString().trim();
       const startDate = (edu.startDate || '').toString().trim();
       return institution.length > 0 && degree.length > 0 && startDate.length > 0;
-    });
+    };
     
-    // Filter out empty certifications
-    const validCertifications = certifications.filter(cert => {
+    const isValidCertification = (cert: CertificationInput) => {
       if (!cert) return false;
       const name = (cert.name || '').toString().trim();
       const issuer = (cert.issuer || '').toString().trim();
       const issueDate = (cert.issueDate || '').toString().trim();
       return name.length > 0 && issuer.length > 0 && issueDate.length > 0;
-    });
+    };
     
-    // Filter out empty achievements
-    const validAchievements = achievements.filter(ach => {
+    const isValidAchievement = (ach: AchievementInput) => {
       if (!ach) return false;
       const title = (ach.title || '').toString().trim();
       const description = (ach.description || '').toString().trim();
       return title.length > 0 && description.length > 0;
+    };
+    
+    // Filter to get valid entries
+    const validExperiences = experiences.filter(isValidExperience);
+    const validProjects = projects.filter(isValidProject);
+    const validEducations = educations.filter(isValidEducation);
+    const validCertifications = certifications.filter(isValidCertification);
+    const validAchievements = achievements.filter(isValidAchievement);
+    
+    console.log('📊 [buildFormData] Valid counts:', {
+      experiences: validExperiences.length,
+      projects: validProjects.length,
+      educations: validEducations.length,
+      certifications: validCertifications.length,
+      achievements: validAchievements.length,
     });
 
-    // Only include personalInfo if it has all required fields filled out
+    const finalData: any = {};
+    
+    // ===== STEP 1: Personal Info =====
+    // Always send on step 1, or if complete
     const hasPersonalInfo = 
       personalInfo.firstName?.trim() && 
       personalInfo.lastName?.trim() && 
       personalInfo.email?.trim();
-
-    const formData: any = {};
     
-    // Only send personalInfo if it's complete
-    if (hasPersonalInfo) {
-      formData.personalInfo = {
-        firstName: personalInfo.firstName.trim(),
-        lastName: personalInfo.lastName.trim(),
-        email: personalInfo.email.trim(),
-        phone: personalInfo.phone?.trim() || null,
-        location: personalInfo.location?.trim() || null,
-        linkedIn: personalInfo.linkedIn?.trim() || null,
-        website: personalInfo.website?.trim() || null,
-      };
+    if (currentStep === 1 || hasPersonalInfo) {
+      if (hasPersonalInfo) {
+        finalData.personalInfo = {
+          firstName: personalInfo.firstName.trim(),
+          lastName: personalInfo.lastName.trim(),
+          email: personalInfo.email.trim(),
+          phone: personalInfo.phone?.trim() || null,
+          location: personalInfo.location?.trim() || null,
+          linkedIn: personalInfo.linkedIn?.trim() || null,
+          website: personalInfo.website?.trim() || null,
+        };
+        console.log('👤 [Step 1] Including personalInfo');
+      }
     }
-
-    // Build the final form data object, only including defined values
-    const finalData: any = { ...formData };
     
-    // Only add fields that have values
-    if (summary && summary.trim()) {
+    // ===== STEP 2: Summary =====
+    // Always send on step 2, or if has content
+    if (currentStep === 2) {
+      finalData.summary = (summary || '').trim();
+      console.log('📝 [Step 2] Including summary:', finalData.summary.length, 'chars');
+    } else if (summary && summary.trim()) {
       finalData.summary = summary.trim();
     }
     
-    if (skills.length > 0) {
-      finalData.skills = skills;
+    // ===== STEP 3: Skills =====
+    // Always send on step 3, or if has skills
+    if (currentStep === 3) {
+      finalData.skills = skills.filter(sg => sg.skills && sg.skills.length > 0);
+      console.log('🧠 [Step 3] Including skills:', finalData.skills.length, 'categories');
+    } else if (skills.length > 0) {
+      finalData.skills = skills.filter(sg => sg.skills && sg.skills.length > 0);
     }
     
-    if (validExperiences.length > 0) {
-      finalData.experiences = validExperiences.map((exp, i) => {
-        // Ensure startDate is not empty
-        const startDate = (exp.startDate || '').toString().trim();
-        let endDate: string | null = null;
-        if (!exp.isCurrent && exp.endDate) {
-          const endDateStr = (exp.endDate || '').toString().trim();
-          endDate = endDateStr || null;
-        }
-        
-        if (!startDate) {
-          console.error('Experience missing startDate:', exp);
-          throw new Error('Start date is required for experience');
-        }
-        
-        const location = (exp.location || '').toString().trim();
-        
-        return {
-          title: (exp.title || '').toString().trim(),
-          company: (exp.company || '').toString().trim(),
-          location: location || null,
-          startDate: startDate,
-          endDate: endDate,
-          isCurrent: Boolean(exp.isCurrent),
-          description: (exp.description || '').toString().trim(),
-          order: i,
-        };
-      });
+    // ===== STEP 4: Experience =====
+    // Always send on step 4, or if has valid experiences
+    if (currentStep === 4) {
+      finalData.experiences = validExperiences.map(mapExperience);
+      console.log('💼 [Step 4] Including experiences:', finalData.experiences.length, 'items');
+    } else if (validExperiences.length > 0) {
+      finalData.experiences = validExperiences.map(mapExperience);
     }
     
-    if (validProjects.length > 0) {
-      finalData.projects = validProjects.map((proj, i) => {
-        const url = (proj.url || '').toString().trim();
-        const technologies = (proj.technologies || '').toString().trim();
-        
-        return {
-          name: (proj.name || '').toString().trim(),
-          description: (proj.description || '').toString().trim(),
-          url: url || null,
-          technologies: technologies || null,
-          order: i,
-        };
-      });
+    // ===== STEP 5: Projects =====
+    // Always send on step 5, or if has valid projects
+    if (currentStep === 5) {
+      finalData.projects = validProjects.map(mapProject);
+      console.log('💻 [Step 5] Including projects:', finalData.projects.length, 'items');
+    } else if (validProjects.length > 0) {
+      finalData.projects = validProjects.map(mapProject);
     }
     
-    if (validEducations.length > 0) {
-      finalData.educations = validEducations.map((edu, i) => {
-        const startDate = (edu.startDate || '').toString().trim();
-        const endDate = (edu.endDate || '').toString().trim();
-        const field = (edu.field || '').toString().trim();
-        const gpa = (edu.gpa || '').toString().trim();
-        
-        if (!startDate) {
-          console.error('Education missing startDate:', edu);
-          throw new Error('Start date is required for education');
-        }
-        
-        return {
-          institution: (edu.institution || '').toString().trim(),
-          degree: (edu.degree || '').toString().trim(),
-          field: field || null,
-          startDate: startDate,
-          endDate: endDate || null,
-          gpa: gpa || null,
-          order: i,
-        };
-      });
+    // ===== STEP 6: Education =====
+    // Always send on step 6, or if has valid educations
+    if (currentStep === 6) {
+      finalData.educations = validEducations.map(mapEducation);
+      console.log('🎓 [Step 6] Including educations:', finalData.educations.length, 'items');
+    } else if (validEducations.length > 0) {
+      finalData.educations = validEducations.map(mapEducation);
     }
     
-    if (validCertifications.length > 0) {
-      finalData.certifications = validCertifications.map(cert => {
-        const issueDate = (cert.issueDate || '').toString().trim();
-        const expiryDate = (cert.expiryDate || '').toString().trim();
-        const credentialId = (cert.credentialId || '').toString().trim();
-        const credentialUrl = (cert.credentialUrl || '').toString().trim();
-        
-        if (!issueDate) {
-          console.error('Certification missing issueDate:', cert);
-          throw new Error('Issue date is required for certification');
-        }
-        
-        return {
-          name: (cert.name || '').toString().trim(),
-          issuer: (cert.issuer || '').toString().trim(),
-          issueDate: issueDate,
-          expiryDate: expiryDate || null,
-          credentialId: credentialId || null,
-          credentialUrl: credentialUrl || null,
-        };
-      });
+    // ===== STEP 7: Certifications =====
+    // Always send on step 7, or if has valid certifications
+    if (currentStep === 7) {
+      finalData.certifications = validCertifications.map(mapCertification);
+      console.log('📋 [Step 7] Including certifications:', finalData.certifications.length, 'items');
+    } else if (validCertifications.length > 0) {
+      finalData.certifications = validCertifications.map(mapCertification);
     }
     
-    if (validAchievements.length > 0) {
-      finalData.achievements = validAchievements.map(ach => {
-        const date = (ach.date || '').toString().trim();
-        return {
-          title: (ach.title || '').toString().trim(),
-          description: (ach.description || '').toString().trim(),
-          date: date || null,
-        };
-      });
+    // ===== STEP 8: Achievements =====
+    // Always send on step 8, or if has valid achievements
+    if (currentStep === 8) {
+      finalData.achievements = validAchievements.map(mapAchievement);
+      console.log('🏆 [Step 8] Including achievements:', finalData.achievements.length, 'items');
+    } else if (validAchievements.length > 0) {
+      finalData.achievements = validAchievements.map(mapAchievement);
     }
     
+    console.log('📤 [buildFormData] Final data keys:', Object.keys(finalData));
     return finalData;
   };
 
@@ -438,9 +509,10 @@ export default function ProfileBuilderPage() {
       const formData = buildFormData();
       
       // Log the data being sent (development only)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Saving profile data:', JSON.stringify(formData, null, 2));
-      }
+      console.log('📤 [handleSave] Current step:', currentStep);
+      console.log('📤 [handleSave] Form data being sent:', JSON.stringify(formData, null, 2));
+      console.log('📤 [handleSave] Certifications in formData:', formData.certifications?.length || 0, formData.certifications);
+      console.log('📤 [handleSave] Achievements in formData:', formData.achievements?.length || 0, formData.achievements);
       
       // Validate required fields for current step
       if (currentStep === 1 && (!formData.personalInfo?.firstName || !formData.personalInfo?.lastName || !formData.personalInfo?.email)) {
@@ -453,7 +525,20 @@ export default function ProfileBuilderPage() {
       setSaving(false);
 
       if (result.success) {
-        setProfile(result.data!);
+        console.log('✅ [Save] Success! Response data:', {
+          certifications: result.data?.certifications?.length || 0,
+          achievements: result.data?.achievements?.length || 0,
+          fullData: result.data,
+        });
+        
+        // Reload profile from database to ensure we have the latest data
+        // Small delay to ensure database transaction has committed
+        setTimeout(async () => {
+          console.log('🔄 [Save] Reloading profile after save...');
+          await loadProfile();
+          console.log('✅ [Save] Profile reloaded successfully');
+        }, 500);
+        
         showToast('success', 'Profile saved successfully!');
       } else {
         // Better error message extraction

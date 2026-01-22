@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { resumeGeneratorService } from '../services/ResumeGeneratorService';
 import { atsScorerService } from '../services/ATSScorerService';
+import { requireAIProvider } from '../middleware/requireAIProvider';
 import { validateRequest } from '../middleware/validateRequest';
 import { NotFoundError } from '../middleware/errorHandler';
 import { z } from 'zod';
@@ -80,12 +81,13 @@ function parseScoreJsonFields(score: {
 router.post(
   '/generate',
   validateRequest(generateInputSchema),
+  requireAIProvider,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const profileId = req.profileId!;
       const { jobDescriptionId, strategy, saveToLibrary } = req.body;
-      const resume = await resumeGeneratorService.generateResume(profileId, jobDescriptionId, strategy, saveToLibrary);
-      
+      const resume = await resumeGeneratorService.generateResume(req.userId!, profileId, jobDescriptionId, strategy, saveToLibrary);
+
       res.status(201).json({
         success: true,
         data: resume,
@@ -132,19 +134,20 @@ router.post(
 router.post(
   '/score',
   validateRequest(scoreInputSchema),
+  requireAIProvider,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const profileId = req.profileId!;
       const { resumeId } = req.body;
-      
+
       // Verify ownership
       const resume = await resumeGeneratorService.getResume(resumeId, profileId);
       if (!resume) {
         throw new NotFoundError('Resume');
       }
 
-      const score = await atsScorerService.scoreResume(resumeId);
-      
+      const score = await atsScorerService.scoreResume(req.userId!, resumeId);
+
       res.json({
         success: true,
         data: parseScoreJsonFields(score),
@@ -165,7 +168,7 @@ router.get('/history', async (req: Request, res: Response, next: NextFunction) =
     const profileId = req.profileId!;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
     const resumes = await resumeGeneratorService.getResumeHistory(profileId, limit);
-    
+
     // Parse JSON fields in scores for each resume
     const resumesWithParsedScores = resumes.map((resume) => ({
       ...resume,
@@ -190,7 +193,7 @@ router.get('/library', async (req: Request, res: Response, next: NextFunction) =
   try {
     const profileId = req.profileId!;
     const resumes = await resumeGeneratorService.getResumeLibrary(profileId);
-    
+
     // Parse JSON fields in scores for each resume
     const resumesWithParsedScores = resumes.map((resume) => ({
       ...resume,
@@ -215,7 +218,7 @@ router.post('/:id/save-to-library', async (req: Request, res: Response, next: Ne
   try {
     const profileId = req.profileId!;
     const resume = await resumeGeneratorService.updateSavedToLibrary(req.params.id, profileId, true);
-    
+
     if (!resume) {
       throw new NotFoundError('Resume');
     }
@@ -238,7 +241,7 @@ router.post('/:id/remove-from-library', async (req: Request, res: Response, next
   try {
     const profileId = req.profileId!;
     const resume = await resumeGeneratorService.updateSavedToLibrary(req.params.id, profileId, false);
-    
+
     if (!resume) {
       throw new NotFoundError('Resume');
     }
@@ -261,7 +264,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const profileId = req.profileId!;
     const resume = await resumeGeneratorService.getResume(req.params.id, profileId);
-    
+
     if (!resume) {
       throw new NotFoundError('Resume');
     }
@@ -290,7 +293,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
   try {
     const profileId = req.profileId!;
     await resumeGeneratorService.deleteResume(req.params.id, profileId);
-    
+
     res.json({
       success: true,
       data: null,
@@ -309,13 +312,13 @@ router.get('/:id/download', async (req: Request, res: Response, next: NextFuncti
   try {
     const profileId = req.profileId!;
     const resume = await resumeGeneratorService.getResume(req.params.id, profileId);
-    
+
     if (!resume) {
       throw new NotFoundError('Resume');
     }
 
     const filename = `${resume.title.replace(/[^a-zA-Z0-9]/g, '_')}.tex`;
-    
+
     res.setHeader('Content-Type', 'application/x-latex');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(resume.latexContent);

@@ -1,6 +1,22 @@
 {
   "name": "vetted-cv",
   "version": "1.0.0",
+  "description": "AI-Powered Resume Workspace",
+  "author": "Vetted AI",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Stevenshanmukh/vetted-cv.git"
+  },
+  "keywords": [
+    "resume",
+    "ai",
+    "job-search",
+    "career",
+    "gpt-4",
+    "claude",
+    "nextjs",
+    "typescript"
+  ],
   "private": true,
   "workspaces": [
     "frontend",
@@ -26,13 +42,14 @@
     "db:reset": "npx prisma migrate reset --force"
   },
   "devDependencies": {
+    "@types/node": "^25.0.10",
     "concurrently": "^8.2.2",
     "eslint": "^8.57.0",
     "prettier": "^3.2.5",
+    "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   },
   "prisma": {
-    "seed": "npx ts-node prisma/seed.ts"
+    "seed": "npx ts-node --transpile-only prisma/seed.ts"
   }
 }
-

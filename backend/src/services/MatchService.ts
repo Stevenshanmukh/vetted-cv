@@ -1,6 +1,6 @@
 import prisma from '../prisma';
 import { NotFoundError } from '../middleware/errorHandler';
-import { openAIService } from './OpenAIService';
+import { aiProviderService } from './AIProviderService';
 
 // Skill synonyms for partial matching
 const SKILL_SYNONYMS: Record<string, string[]> = {
@@ -41,7 +41,7 @@ export class MatchService {
   /**
    * Match profile against job description
    */
-  async matchProfileToJob(profileId: string, jobDescriptionId: string): Promise<MatchResult> {
+  async matchProfileToJob(userId: string, profileId: string, jobDescriptionId: string): Promise<MatchResult> {
     // Get job analysis
     const jobDescription = await prisma.jobDescription.findUnique({
       where: { id: jobDescriptionId },
@@ -84,7 +84,7 @@ export class MatchService {
 
     for (const kw of atsKeywords) {
       const keywordLower = kw.keyword.toLowerCase();
-      
+
       // Check for direct match
       if (profileSkills.includes(keywordLower) || profileText.includes(keywordLower)) {
         directMatches.push({
@@ -131,19 +131,14 @@ export class MatchService {
       ((directMatches.length + partialMatches.length * 0.5) / totalKeywords) * 100
     );
 
-    // Generate recommendations (try AI-enhanced, fallback to rule-based)
-    let recommendations: string[];
-    try {
-      recommendations = await this.generateAIRecommendations(
-        gaps,
-        directMatches.length,
-        atsKeywords.length,
-        profileText
-      );
-    } catch (error) {
-      console.warn('AI recommendations failed, using fallback:', error);
-      recommendations = this.generateRecommendations(gaps, directMatches.length, atsKeywords.length);
-    }
+    // Generate recommendations (strict AI)
+    const recommendations = await this.generateAIRecommendations(
+      userId,
+      gaps,
+      directMatches.length,
+      atsKeywords.length,
+      profileText
+    );
 
     return {
       matchPercent: Math.min(100, matchPercent),
@@ -207,6 +202,7 @@ export class MatchService {
   }
 
   private async generateAIRecommendations(
+    userId: string,
     gaps: MatchItem[],
     directMatchCount: number,
     totalKeywords: number,
@@ -230,7 +226,7 @@ Provide concise recommendations focusing on:
 
 Return as JSON array: ["recommendation 1", "recommendation 2", ...]`;
 
-    const aiRecs = await openAIService.callJSON<string[]>(prompt, {
+    const aiRecs = await aiProviderService.callJSON<string[]>(userId, prompt, {
       temperature: 0.6,
       maxTokens: 400,
       useCache: false,
@@ -240,42 +236,10 @@ Return as JSON array: ["recommendation 1", "recommendation 2", ...]`;
       return aiRecs.slice(0, 5);
     }
 
-    // Fallback if AI returns invalid format
-    return this.generateRecommendations(gaps, directMatchCount, totalKeywords);
+    // Fallback if AI returns invalid format (return empty or throw? strict means maybe just empty list if format invalid, but no rule-based fallback)
+    return [];
   }
 
-  private generateRecommendations(
-    gaps: MatchItem[],
-    directMatchCount: number,
-    totalKeywords: number
-  ): string[] {
-    const recommendations: string[] = [];
-
-    if (gaps.length > 5) {
-      recommendations.push(
-        `You're missing ${gaps.length} key skills. Focus on the top 3-5 most critical ones.`
-      );
-    }
-
-    if (directMatchCount < totalKeywords * 0.5) {
-      recommendations.push(
-        'Consider tailoring your experience descriptions to include more job-specific keywords.'
-      );
-    }
-
-    const topGaps = gaps.slice(0, 3);
-    for (const gap of topGaps) {
-      if (gap.suggestion) {
-        recommendations.push(gap.suggestion);
-      }
-    }
-
-    if (recommendations.length === 0) {
-      recommendations.push('Your profile is well-matched to this role!');
-    }
-
-    return recommendations.slice(0, 5);
-  }
 }
 
 export const matchService = new MatchService();

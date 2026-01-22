@@ -3,29 +3,43 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout';
-import { Card, CardHeader, CardTitle, Button, Progress, Badge } from '@/components/ui';
+import { Card, CardHeader, CardTitle, Button, Badge } from '@/components/ui';
+import { ProfileCompleteness } from '@/components/profile/ProfileCompleteness';
+import { OnboardingAISetup } from '@/components/onboarding/OnboardingAISetup';
 import { api, Profile, ApplicationStats } from '@/services/api';
 import { cn, getStatusColor, getRelativeTime } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<ApplicationStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [completenessData, setCompletenessData] = useState<{ percent: number; missing: string[] } | null>(null);
 
   useEffect(() => {
     async function loadData() {
-      const [profileRes, statsRes] = await Promise.all([
-        api.profile.get(),
-        api.applications.getStats(),
-      ]);
+      try {
+        const [profileRes, statsRes, completenessRes] = await Promise.all([
+          api.profile.get(),
+          api.applications.getStats(),
+          api.profile.getCompleteness(),
+        ]);
 
-      if (profileRes.success && profileRes.data) {
-        setProfile(profileRes.data);
+        if (profileRes.success && profileRes.data) {
+          setProfile(profileRes.data);
+        }
+        if (statsRes.success && statsRes.data) {
+          setStats(statsRes.data);
+        }
+        if (completenessRes.success && completenessRes.data) {
+          setCompletenessData(completenessRes.data);
+        }
+      } catch (error) {
+        console.error('Failed to load dashboard data', error);
+      } finally {
+        setLoading(false);
       }
-      if (statsRes.success && statsRes.data) {
-        setStats(statsRes.data);
-      }
-      setLoading(false);
     }
 
     loadData();
@@ -46,7 +60,7 @@ export default function DashboardPage() {
     );
   }
 
-  const firstName = profile?.personalInfo?.firstName || 'there';
+  const firstName = profile?.personalInfo?.firstName || user?.name?.split(' ')[0] || 'there';
 
   return (
     <MainLayout title="Dashboard">
@@ -66,6 +80,9 @@ export default function DashboardPage() {
           </Link>
         </div>
 
+        {/* AI Onboarding Banner */}
+        <OnboardingAISetup />
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Profile Completeness */}
@@ -74,17 +91,15 @@ export default function DashboardPage() {
               <CardTitle>Profile Completeness</CardTitle>
               <span className="material-symbols-outlined text-primary">person</span>
             </CardHeader>
-            <div className="space-y-3">
-              <div className="flex items-end justify-between">
-                <span className="text-4xl font-bold text-text-primary dark:text-text-primary-dark">
-                  {profile?.completenessPercent || 0}%
-                </span>
-                <span className="text-sm text-text-muted">Complete</span>
-              </div>
-              <Progress value={profile?.completenessPercent || 0} colorByScore />
+            <div className="space-y-4">
+              <ProfileCompleteness
+                percent={completenessData?.percent || profile?.completenessPercent || 0}
+                missing={completenessData?.missing || []}
+              />
+
               <Link
                 href="/profile"
-                className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                className="text-sm text-primary hover:underline inline-flex items-center gap-1 w-full justify-end"
               >
                 Complete your profile
                 <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -173,8 +188,8 @@ export default function DashboardPage() {
                   <div className={cn('w-10 h-10 rounded-full flex items-center justify-center', getStatusColor(activity.application.status))}>
                     <span className="material-symbols-outlined text-lg">
                       {activity.application.status === 'interview' ? 'event' :
-                       activity.application.status === 'offer' ? 'celebration' :
-                       activity.application.status === 'rejected' ? 'close' : 'send'}
+                        activity.application.status === 'offer' ? 'celebration' :
+                          activity.application.status === 'rejected' ? 'close' : 'send'}
                     </span>
                   </div>
                   <div className="flex-1">
@@ -204,4 +219,3 @@ export default function DashboardPage() {
     </MainLayout>
   );
 }
-

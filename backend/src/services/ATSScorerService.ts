@@ -1,7 +1,7 @@
 import prisma from '../prisma';
 import { ResumeScore } from '@prisma/client';
 import { NotFoundError } from '../middleware/errorHandler';
-import { openAIService } from './OpenAIService';
+import { aiProviderService } from './AIProviderService';
 
 // Action verbs for scoring
 const ACTION_VERBS = new Set([
@@ -48,7 +48,7 @@ export class ATSScorerService {
   /**
    * Score a resume
    */
-  async scoreResume(resumeId: string): Promise<ResumeScore> {
+  async scoreResume(userId: string, resumeId: string): Promise<ResumeScore> {
     const resume = await prisma.resume.findUnique({
       where: { id: resumeId },
       include: {
@@ -64,6 +64,7 @@ export class ATSScorerService {
 
     // Calculate scores
     const scoreResult = await this.calculateScores(
+      userId,
       resume.latexContent,
       resume.jobDescription?.analysis?.atsKeywords || '[]'
     );
@@ -91,7 +92,7 @@ export class ATSScorerService {
   /**
    * Calculate all scores for a resume
    */
-  private async calculateScores(latexContent: string, atsKeywordsJson: string): Promise<ScoreResult> {
+  private async calculateScores(userId: string, latexContent: string, atsKeywordsJson: string): Promise<ScoreResult> {
     const plainText = this.extractPlainText(latexContent);
     const bullets = this.extractBullets(latexContent);
     const wordCount = this.countWords(plainText);
@@ -124,6 +125,7 @@ export class ATSScorerService {
 
     // Generate recommendations (with AI if available)
     const recommendations = await this.generateRecommendations(
+      userId,
       atsScore,
       recruiterScore,
       missingKeywords,
@@ -275,6 +277,7 @@ export class ATSScorerService {
   }
 
   private async generateRecommendations(
+    userId: string,
     atsScore: number,
     recruiterScore: number,
     missingKeywords: string[],
@@ -285,8 +288,7 @@ export class ATSScorerService {
   ): Promise<string[]> {
     // Try AI-powered recommendations first
     if (resumeText && missingKeywords.length > 0) {
-      try {
-        const prompt = `Analyze this resume and provide 3-5 specific, actionable recommendations to improve ATS score and recruiter appeal.
+      const prompt = `Analyze this resume and provide 3-5 specific, actionable recommendations to improve ATS score and recruiter appeal.
 
 Resume Score: ATS ${atsScore}/100, Recruiter ${recruiterScore}/100
 Missing Keywords: ${missingKeywords.slice(0, 10).join(', ')}
@@ -304,46 +306,18 @@ Provide concise, actionable recommendations (one sentence each). Focus on:
 
 Return as JSON array: ["recommendation 1", "recommendation 2", ...]`;
 
-        const aiRecs = await openAIService.callJSON<string[]>(prompt, {
-          temperature: 0.5,
-          maxTokens: 300,
-          useCache: false, // Don't cache as recommendations are score-specific
-        });
+      const aiRecs = await aiProviderService.callJSON<string[]>(userId, prompt, {
+        temperature: 0.5,
+        maxTokens: 300,
+        useCache: false, // Don't cache as recommendations are score-specific
+      });
 
-        if (Array.isArray(aiRecs) && aiRecs.length > 0) {
-          return aiRecs.slice(0, 5);
-        }
-      } catch (error) {
-        console.warn('AI recommendations failed, using fallback:', error);
+      if (Array.isArray(aiRecs) && aiRecs.length > 0) {
+        return aiRecs.slice(0, 5);
       }
     }
 
-    // Fallback to rule-based recommendations
-    const recommendations: string[] = [];
-
-    if (missingKeywords.length > 0) {
-      recommendations.push(
-        `Add these keywords to improve ATS score: ${missingKeywords.slice(0, 5).join(', ')}`
-      );
-    }
-
-    if (metricsScore < 50) {
-      recommendations.push('Add more quantified achievements (numbers, percentages) to your bullets');
-    }
-
-    if (actionVerbScore < 70) {
-      recommendations.push('Start more bullet points with strong action verbs (Led, Developed, Increased)');
-    }
-
-    if (!sections.some((s) => s.includes('summary'))) {
-      recommendations.push('Consider adding a Professional Summary section');
-    }
-
-    if (atsScore >= 80 && recruiterScore >= 80) {
-      recommendations.push('Your resume is well-optimized! Consider minor tweaks for specific roles.');
-    }
-
-    return recommendations.slice(0, 5);
+    return [];
   }
 }
 

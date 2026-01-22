@@ -1,3 +1,4 @@
+import React from 'react';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/context/ToastContext';

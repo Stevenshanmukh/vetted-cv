@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { jobAnalysisService } from '../services/JobAnalysisService';
 import { matchService } from '../services/MatchService';
+import { requireAIProvider } from '../middleware/requireAIProvider';
 import { validateRequest } from '../middleware/validateRequest';
 import { NotFoundError } from '../middleware/errorHandler';
 import { z } from 'zod';
@@ -59,11 +60,12 @@ const matchInputSchema = z.object({
 router.post(
   '/analyze',
   validateRequest(jobInputSchema),
+  requireAIProvider,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { title, company, descriptionText } = req.body;
-      const result = await jobAnalysisService.analyzeJob(title, company, descriptionText);
-      
+      const result = await jobAnalysisService.analyzeJob(req.userId!, title, company, descriptionText);
+
       // Parse JSON fields for response
       const analysis = result.analysis;
       res.status(201).json({
@@ -93,12 +95,13 @@ router.post(
 router.post(
   '/match',
   validateRequest(matchInputSchema),
+  requireAIProvider,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const profileId = req.profileId!;
       const { jobDescriptionId } = req.body;
-      const result = await matchService.matchProfileToJob(profileId, jobDescriptionId);
-      
+      const result = await matchService.matchProfileToJob(req.userId!, profileId, jobDescriptionId);
+
       res.json({
         success: true,
         data: result,
@@ -117,7 +120,7 @@ router.post(
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const job = await jobAnalysisService.getJobDescription(req.params.id);
-    
+
     if (!job) {
       throw new NotFoundError('Job description');
     }

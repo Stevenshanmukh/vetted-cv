@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useSidebar } from '@/context/SidebarContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
+import { NotificationDropdown } from '../common/NotificationDropdown';
 
 interface HeaderProps {
   title?: string;
@@ -82,7 +83,7 @@ export function Header({ title }: HeaderProps) {
     <header className="sticky top-0 z-40 bg-surface-light/80 dark:bg-surface-dark/80 backdrop-blur-sm border-b border-border-light dark:border-border-dark">
       <div className="flex items-center justify-between h-16 px-6">
         {/* Sidebar toggle button */}
-        <button 
+        <button
           onClick={toggleSidebar}
           className="p-2 -ml-2 text-text-secondary hover:text-text-primary dark:text-text-secondary-dark dark:hover:text-text-primary-dark rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           aria-label="Toggle sidebar"
@@ -112,11 +113,9 @@ export function Header({ title }: HeaderProps) {
             </span>
           </button>
 
+
           {/* Notifications */}
-          <button className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:text-text-primary-dark dark:hover:bg-gray-800 transition-colors relative">
-            <span className="material-symbols-outlined">notifications</span>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full"></span>
-          </button>
+          <NotificationDropdown />
 
           {/* User menu */}
           <div className="relative" ref={menuRef}>

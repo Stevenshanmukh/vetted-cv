@@ -1,0 +1,17 @@
+{
+    "extends": "./tsconfig.base.json",
+    "compilerOptions": {
+        "sourceMap": true,
+        "outDir": "dist",
+        "strict": true,
+        "lib": [
+            "esnext"
+        ],
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "moduleResolution": "node"
+    },
+    "include": [
+        "prisma/**/*"
+    ]
+}

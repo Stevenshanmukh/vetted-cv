@@ -14,8 +14,48 @@ export default function DashboardError({
 }) {
   const { isRetrying, retryCount, handleRetry, handleRefresh } = useErrorRetry(reset);
 
+  // Safely extract error message, handling Event objects and other non-Error types
+  const getErrorMessage = (err: any): string => {
+    // Check if it's an Event object
+    if (err && typeof err === 'object' && err.type && err.target) {
+      return 'An unexpected event error occurred. Please try again.';
+    }
+    
+    // Check if it's an Error instance
+    if (err instanceof Error) {
+      return err.message || 'An unexpected error occurred';
+    }
+    
+    // Check if it has a message property
+    if (err?.message && typeof err.message === 'string') {
+      return err.message;
+    }
+    
+    // Check if it's a string
+    if (typeof err === 'string') {
+      return err;
+    }
+    
+    // Fallback
+    return 'There was a problem loading your dashboard data. Please try again.';
+  };
+
+  const errorMessage = getErrorMessage(error);
+  const isNetworkError = errorMessage.toLowerCase().includes('network') || 
+                         errorMessage.toLowerCase().includes('fetch') ||
+                         errorMessage.toLowerCase().includes('connection');
+
   useEffect(() => {
     console.error('Dashboard error:', error);
+    // Log error details for debugging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    } else {
+      console.error('Error type:', typeof error);
+      console.error('Error value:', error);
+    }
   }, [error]);
 
   return (
@@ -27,10 +67,10 @@ export default function DashboardError({
         <h1 className="text-xl font-bold text-text-primary dark:text-text-primary-dark mb-2">
           Failed to load dashboard
         </h1>
-        <p className="text-text-secondary dark:text-text-secondary-dark mb-6">
-          {error.message?.includes('network') || error.message?.includes('fetch')
+        <p className="text-text-secondary dark:text-secondary-dark mb-6">
+          {isNetworkError
             ? 'Connection error detected. Please check your internet connection.'
-            : 'There was a problem loading your dashboard data. Please try again.'}
+            : errorMessage}
         </p>
         {retryCount > 0 && (
           <p className="text-sm text-text-muted mb-4">

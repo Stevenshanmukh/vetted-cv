@@ -14,7 +14,7 @@ interface Toast {
 
 interface ToastContextValue {
   toasts: Toast[];
-  showToast: (type: ToastType, message: string, duration?: number) => void;
+  showToast: (type: ToastType, message: string | Error | unknown, duration?: number) => void;
   dismissToast: (id: string) => void;
 }
 
@@ -23,7 +23,22 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = useCallback((type: ToastType, message: string, duration?: number) => {
+  const showToast = useCallback((type: ToastType, message: string | Error | unknown, duration?: number) => {
+    // Safely convert message to string, handling Event objects and other types
+    let safeMessage: string;
+    if (typeof message === 'string') {
+      safeMessage = message;
+    } else if (message instanceof Error) {
+      safeMessage = message.message || 'An error occurred';
+    } else if (message && typeof message === 'object' && 'type' in message && 'target' in message) {
+      // It's an Event object
+      safeMessage = 'An unexpected event error occurred';
+    } else if (message && typeof message === 'object' && 'message' in message) {
+      safeMessage = String((message as any).message) || 'An error occurred';
+    } else {
+      safeMessage = String(message) || 'An error occurred';
+    }
+
     const id = Math.random().toString(36).slice(2);
     const defaultDurations: Record<ToastType, number> = {
       success: 4000,
@@ -32,19 +47,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       warning: 6000,
     };
 
+    const toastDuration = duration ?? defaultDurations[type];
     const toast: Toast = {
       id,
       type,
-      message,
-      duration: duration ?? defaultDurations[type],
+      message: safeMessage,
+      duration: toastDuration,
     };
 
     setToasts((prev) => [...prev, toast]);
 
-    if (toast.duration > 0) {
+    if (toastDuration > 0) {
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, toast.duration);
+      }, toastDuration);
     }
   }, []);
 

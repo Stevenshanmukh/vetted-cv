@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MainLayout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, Button, Badge, Input, DatePicker, ResumeSelector } from '@/components/ui';
 import { api, Application, ApplicationInput, ApplicationStatus, Resume } from '@/services/api';
@@ -51,13 +51,14 @@ export default function ApplicationsPage() {
       // When filter is 'all', pass undefined to get all applications
       const status = filter === 'all' ? undefined : filter;
       const result = await api.applications.getAll(status);
-      if (result.success) {
+      if (result.success && result.data) {
         // Handle both array and object responses
         let data: Application[] = [];
         if (Array.isArray(result.data)) {
           data = result.data;
-        } else if (result.data && typeof result.data === 'object' && 'data' in result.data) {
-          data = Array.isArray(result.data.data) ? result.data.data : [];
+        } else if (result.data && typeof result.data === 'object' && 'data' in (result.data as any)) {
+          const nestedData = (result.data as any).data;
+          data = Array.isArray(nestedData) ? nestedData : [];
         }
         
         console.log(`Loaded ${data.length} applications for filter: ${filter}`, data);

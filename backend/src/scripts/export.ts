@@ -36,15 +36,20 @@ export async function exportUserData(userId: string): Promise<string> {
       educations: true,
       certifications: true,
       achievements: true,
-      jobDescriptions: {
-        include: { analysis: true },
-      },
       resumes: {
         include: {
           scores: true,
         },
       },
-      applications: true,
+      applications: {
+        include: {
+          jobDescription: {
+            include: {
+              analysis: true,
+            },
+          },
+        },
+      },
     },
   });
   
@@ -87,15 +92,20 @@ export async function exportAllData(): Promise<string> {
           educations: true,
           certifications: true,
           achievements: true,
-          jobDescriptions: {
-            include: { analysis: true },
-          },
           resumes: {
             include: {
               scores: true,
             },
           },
-          applications: true,
+          applications: {
+            include: {
+              jobDescription: {
+                include: {
+                  analysis: true,
+                },
+              },
+            },
+          },
         },
       },
     },

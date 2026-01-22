@@ -1,7 +1,7 @@
 import prisma from '../prisma';
 import { Resume } from '@prisma/client';
 import { NotFoundError } from '../middleware/errorHandler';
-import { openAIService } from './OpenAIService';
+import { aiProviderService } from './AIProviderService';
 
 type ResumeStrategy = 'max_ats' | 'recruiter_readability' | 'career_switch' | 'promotion_internal' | 'stretch_role';
 
@@ -17,7 +17,7 @@ export class ResumeGeneratorService {
   /**
    * Generate a resume based on profile and job description
    */
-  async generateResume(profileId: string, jobDescriptionId: string, strategy: ResumeStrategy, saveToLibrary: boolean = false): Promise<Resume> {
+  async generateResume(userId: string, profileId: string, jobDescriptionId: string, strategy: ResumeStrategy, saveToLibrary: boolean = false): Promise<Resume> {
     // Get profile
     const profile = await prisma.profile.findUnique({
       where: { id: profileId },
@@ -46,14 +46,8 @@ export class ResumeGeneratorService {
       throw new NotFoundError('Job description');
     }
 
-    // Generate LaTeX (try AI-enhanced, fallback to template-based)
-    let latexContent: string;
-    try {
-      latexContent = await this.generateLatexWithAI(profile, jobDescription, strategy);
-    } catch (error) {
-      console.warn('AI resume generation failed, using template:', error);
-      latexContent = this.generateLatex(profile, jobDescription, strategy);
-    }
+    // Generate LaTeX (strict AI)
+    const latexContent = await this.generateLatexWithAI(userId, profile, jobDescription, strategy);
 
     // Create resume record
     const resume = await prisma.resume.create({
@@ -110,7 +104,7 @@ export class ResumeGeneratorService {
    */
   async getResumeLibrary(profileId: string): Promise<Resume[]> {
     return prisma.resume.findMany({
-      where: { 
+      where: {
         profileId,
         savedToLibrary: true,
       },
@@ -156,6 +150,7 @@ export class ResumeGeneratorService {
    * Generate LaTeX content with AI optimization
    */
   private async generateLatexWithAI(
+    userId: string,
     profile: {
       personalInfo: {
         firstName: string;
@@ -193,15 +188,14 @@ export class ResumeGeneratorService {
     strategy: ResumeStrategy
   ): Promise<string> {
     // Get ATS keywords from job analysis
-    const atsKeywords = jobDescription.analysis 
+    const atsKeywords = jobDescription.analysis
       ? JSON.parse(jobDescription.analysis.atsKeywords) as { keyword: string; weight: number }[]
       : [];
 
     // Optimize summary with AI
     let optimizedSummary = profile.summary || '';
     if (profile.summary && atsKeywords.length > 0) {
-      try {
-        const summaryPrompt = `Rewrite this professional summary to be more ATS-friendly and aligned with the job requirements. Keep it concise (2-3 sentences), include relevant keywords naturally, and maintain authenticity.
+      const summaryPrompt = `Rewrite this professional summary to be more ATS-friendly and aligned with the job requirements. Keep it concise (2-3 sentences), include relevant keywords naturally, and maintain authenticity.
 
 Original Summary:
 ${profile.summary}
@@ -211,15 +205,12 @@ Key Keywords to incorporate: ${atsKeywords.slice(0, 10).map(k => k.keyword).join
 
 Return only the rewritten summary, no explanations.`;
 
-        const aiSummary = await openAIService.call(summaryPrompt, {
-          temperature: 0.7,
-          maxTokens: 200,
-          useCache: false, // Don't cache summaries as they're job-specific
-        });
-        optimizedSummary = aiSummary.content.trim();
-      } catch (error) {
-        console.warn('AI summary optimization failed:', error);
-      }
+      const aiSummary = await aiProviderService.call(userId, summaryPrompt, {
+        temperature: 0.7,
+        maxTokens: 200,
+        useCache: false, // Don't cache summaries as they're job-specific
+      });
+      optimizedSummary = aiSummary.content.trim();
     }
 
     // Optimize experience descriptions with AI
@@ -227,8 +218,7 @@ Return only the rewritten summary, no explanations.`;
       profile.experiences.map(async (exp) => {
         if (!exp.description || atsKeywords.length === 0) return exp;
 
-        try {
-          const expPrompt = `Rewrite these job responsibilities to be more ATS-friendly and impactful. Use action verbs, include metrics/numbers where possible, and naturally incorporate relevant keywords. Keep 3-5 bullet points.
+        const expPrompt = `Rewrite these job responsibilities to be more ATS-friendly and impactful. Use action verbs, include metrics/numbers where possible, and naturally incorporate relevant keywords. Keep 3-5 bullet points.
 
 Job Title: ${exp.title}
 Company: ${exp.company}
@@ -239,20 +229,16 @@ Target Job Keywords: ${atsKeywords.slice(0, 8).map(k => k.keyword).join(', ')}
 
 Return only the rewritten bullet points, one per line, starting with action verbs.`;
 
-          const aiDesc = await openAIService.call(expPrompt, {
-            temperature: 0.7,
-            maxTokens: 300,
-            useCache: false,
-          });
-          
-          return {
-            ...exp,
-            description: aiDesc.content.trim(),
-          };
-        } catch (error) {
-          console.warn(`AI optimization failed for ${exp.title}:`, error);
-          return exp;
-        }
+        const aiDesc = await aiProviderService.call(userId, expPrompt, {
+          temperature: 0.7,
+          maxTokens: 300,
+          useCache: false,
+        });
+
+        return {
+          ...exp,
+          description: aiDesc.content.trim(),
+        };
       })
     );
 
@@ -308,15 +294,15 @@ Return only the rewritten bullet points, one per line, starting with action verb
     strategy: ResumeStrategy
   ): string {
     const sections = SECTION_ORDER[strategy] || SECTION_ORDER.recruiter_readability;
-    
+
     let latex = this.getHeader(profile, jobDescription.title);
-    
+
     for (const section of sections) {
       latex += this.generateSection(section, profile);
     }
-    
+
     latex += '\\end{document}';
-    
+
     return latex;
   }
 
@@ -452,11 +438,11 @@ ${this.escapeLatex(profile.summary)}
     if (experiences.length === 0) return '';
 
     let latex = '\\section{Professional Experience}\n';
-    
+
     for (const exp of experiences) {
       const dates = this.formatDateRange(exp.startDate, exp.endDate, exp.isCurrent);
       const bullets = this.formatBullets(exp.description);
-      
+
       latex += `\\cventry{${dates}}{${this.escapeLatex(exp.title)}}{${this.escapeLatex(exp.company)}}{${this.escapeLatex(exp.location || '')}}{}{
 \\begin{itemize}
 ${bullets}
@@ -482,12 +468,12 @@ ${bullets}
     if (educations.length === 0) return '';
 
     let latex = '\\section{Education}\n';
-    
+
     for (const edu of educations) {
       const dates = this.formatDateRange(edu.startDate, edu.endDate);
       const degree = edu.field ? `${edu.degree} in ${edu.field}` : edu.degree;
       const gpa = edu.gpa ? `GPA: ${edu.gpa}` : '';
-      
+
       latex += `\\cventry{${dates}}{${this.escapeLatex(degree)}}{${this.escapeLatex(edu.institution)}}{}{${gpa}}{}\n`;
     }
     latex += '\n';
@@ -501,7 +487,7 @@ ${bullets}
     if (projects.length === 0) return '';
 
     let latex = '\\section{Projects}\n';
-    
+
     for (const proj of projects) {
       const tech = proj.technologies ? ` (${proj.technologies})` : '';
       latex += `\\cvitem{${this.escapeLatex(proj.name)}}{${this.escapeLatex(proj.description)}${tech}}\n`;
@@ -517,7 +503,7 @@ ${bullets}
     if (certifications.length === 0) return '';
 
     let latex = '\\section{Certifications}\n';
-    
+
     for (const cert of certifications) {
       const date = new Date(cert.issueDate).getFullYear().toString();
       latex += `\\cvitem{${date}}{${this.escapeLatex(cert.name)} -- ${this.escapeLatex(cert.issuer)}}\n`;
@@ -533,7 +519,7 @@ ${bullets}
     if (achievements.length === 0) return '';
 
     let latex = '\\section{Achievements}\n';
-    
+
     for (const ach of achievements) {
       const date = ach.date ? new Date(ach.date).getFullYear().toString() : '';
       latex += `\\cvitem{${date}}{\\textbf{${this.escapeLatex(ach.title)}}: ${this.escapeLatex(ach.description)}}\n`;

@@ -79,7 +79,7 @@ async function fetchApi<T>(
         // Try to parse error response
         try {
           const errorData = await response.json();
-          
+
           // Handle different error response formats
           if (errorData.error) {
             return {
@@ -121,7 +121,7 @@ async function fetchApi<T>(
       }
 
       const data = await response.json();
-      
+
       // Validate response structure
       if (data && typeof data === 'object') {
         // Ensure error object has proper structure if present
@@ -136,17 +136,17 @@ async function fetchApi<T>(
           }
         }
       }
-      
+
       return data;
     } catch (fetchError: any) {
       clearTimeout(timeoutId);
-      
+
       // Retry on network errors or aborted requests
       if (
-        (fetchError.name === 'AbortError' || 
-         fetchError.message === 'Request timeout' ||
-         fetchError.message?.includes('Failed to fetch') ||
-         fetchError.message?.includes('NetworkError')) &&
+        (fetchError.name === 'AbortError' ||
+          fetchError.message === 'Request timeout' ||
+          fetchError.message?.includes('Failed to fetch') ||
+          fetchError.message?.includes('NetworkError')) &&
         retryCount < MAX_RETRIES
       ) {
         await sleep(RETRY_DELAY * (retryCount + 1)); // Exponential backoff
@@ -157,7 +157,7 @@ async function fetchApi<T>(
     }
   } catch (error: any) {
     console.error(`API Error [${endpoint}] (attempt ${retryCount + 1}):`, error);
-    
+
     // Final error after all retries
     return {
       success: false,
@@ -305,7 +305,7 @@ export interface MatchResult {
 }
 
 // Resume Types
-export type ResumeStrategy = 
+export type ResumeStrategy =
   | 'max_ats'
   | 'recruiter_readability'
   | 'career_switch'
@@ -395,6 +395,17 @@ export interface ApplicationInput {
   notes?: string;
 }
 
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  isRead: boolean;
+  link?: string;
+  createdAt: string;
+}
+
 /**
  * API Client
  */
@@ -474,6 +485,34 @@ export const api = {
       }),
     delete: (id: string) =>
       fetchApi<void>(`/applications/${id}`, { method: 'DELETE' }),
+  },
+
+  // Notifications
+  notifications: {
+    getAll: () => fetchApi<{ notifications: Notification[]; unreadCount: number }>('/notifications'),
+    markAsRead: (id: string) => fetchApi<void>(`/notifications/${id}/read`, { method: 'PATCH' }),
+    markAllAsRead: () => fetchApi<void>('/notifications/read-all', { method: 'PATCH' }),
+  },
+
+  // AI Providers
+  ai: {
+    getProviders: () => fetchApi<any[]>('/ai/providers'),
+    saveKey: (provider: string, apiKey: string) =>
+      fetchApi<void>(`/ai/providers/${provider}/key`, {
+        method: 'POST',
+        body: JSON.stringify({ apiKey }),
+      }),
+    deleteKey: (provider: string) =>
+      fetchApi<void>(`/ai/providers/${provider}/key`, { method: 'DELETE' }),
+    activateProvider: (provider: string) =>
+      fetchApi<void>(`/ai/providers/${provider}/activate`, { method: 'POST' }),
+    validateKey: (provider: string, apiKey: string) =>
+      fetchApi<{ isValid: boolean }>(`/ai/providers/${provider}/validate`, {
+        method: 'POST',
+        body: JSON.stringify({ apiKey }),
+      }),
+    getStatus: () =>
+      fetchApi<{ configured: boolean; activeProvider: string | null }>('/ai/status'),
   },
 };
 

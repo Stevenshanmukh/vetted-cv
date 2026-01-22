@@ -22,7 +22,40 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  profile Profile?
+  profile        Profile?
+  notifications  Notification[]
+  aiProviderKeys AIProviderKey[]
+}
+
+model AIProviderKey {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider      String    // 'openai' | 'anthropic' | 'google' | 'perplexity'
+  encryptedKey  String    // AES-256-GCM encrypted
+  keyPrefix     String    // Display only (e.g., "sk-xxxx****")
+  isActive      Boolean   @default(false)
+  isValid       Boolean   @default(true)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastUsedAt    DateTime?
+
+  @@unique([userId, provider])
+  @@index([userId, isActive])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info") // info, success, warning, error
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
 }
 
 // ============================================

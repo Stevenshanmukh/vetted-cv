@@ -77,7 +77,7 @@ export class ProfileService {
         achievements: true,
       },
     });
-    
+
     if (profile) {
       console.log(`📖 [ProfileService] Retrieved profile ${profileId}:`, {
         personalInfo: profile.personalInfo ? 'yes' : 'no',
@@ -92,7 +92,7 @@ export class ProfileService {
     } else {
       console.log(`❌ [ProfileService] Profile ${profileId} not found`);
     }
-    
+
     return profile;
   }
 
@@ -104,7 +104,7 @@ export class ProfileService {
     if (input.personalInfo) {
       const { firstName, lastName, email } = input.personalInfo;
       console.log(`👤 [ProfileService] Updating personalInfo for profile ${profileId}:`, { firstName, lastName, email });
-      
+
       // Only update if we have all required fields
       if (firstName && lastName && email) {
         await prisma.personalInfo.upsert({
@@ -147,7 +147,7 @@ export class ProfileService {
     // Update skills
     if (input.skills !== undefined) {
       console.log(`🧠 [ProfileService] Updating skills for profile ${profileId}:`, input.skills.length, 'categories');
-      
+
       // Delete existing skills
       await prisma.skill.deleteMany({ where: { profileId } });
 
@@ -178,7 +178,7 @@ export class ProfileService {
     if (input.experiences !== undefined) {
       console.log(`💼 [ProfileService] Updating experiences for profile ${profileId}:`, input.experiences.length, 'items');
       await prisma.experience.deleteMany({ where: { profileId } });
-      
+
       if (input.experiences.length > 0) {
         await prisma.experience.createMany({
           data: input.experiences.map((exp, index) => ({
@@ -203,7 +203,7 @@ export class ProfileService {
     if (input.projects !== undefined) {
       console.log(`💻 [ProfileService] Updating projects for profile ${profileId}:`, input.projects.length, 'items');
       await prisma.project.deleteMany({ where: { profileId } });
-      
+
       if (input.projects.length > 0) {
         await prisma.project.createMany({
           data: input.projects.map((proj, index) => ({
@@ -225,7 +225,7 @@ export class ProfileService {
     if (input.educations !== undefined) {
       console.log(`🎓 [ProfileService] Updating educations for profile ${profileId}:`, input.educations.length, 'items');
       await prisma.education.deleteMany({ where: { profileId } });
-      
+
       if (input.educations.length > 0) {
         await prisma.education.createMany({
           data: input.educations.map((edu, index) => ({
@@ -249,10 +249,10 @@ export class ProfileService {
     if (input.certifications !== undefined) {
       console.log(`📋 [ProfileService] Updating certifications for profile ${profileId}:`, input.certifications.length, 'items');
       console.log('📋 [ProfileService] Certification data:', JSON.stringify(input.certifications, null, 2));
-      
+
       await prisma.certification.deleteMany({ where: { profileId } });
       console.log(`📋 [ProfileService] Deleted existing certifications for profile ${profileId}`);
-      
+
       if (input.certifications.length > 0) {
         const certData = input.certifications.map((cert) => {
           const issueDate = this.parseDate(cert.issueDate);
@@ -272,7 +272,7 @@ export class ProfileService {
           console.log(`📋 [ProfileService] Parsed certification:`, parsedCert);
           return parsedCert;
         });
-        
+
         await prisma.certification.createMany({
           data: certData,
         });
@@ -288,10 +288,10 @@ export class ProfileService {
     if (input.achievements !== undefined) {
       console.log(`🏆 [ProfileService] Updating achievements for profile ${profileId}:`, input.achievements.length, 'items');
       console.log('🏆 [ProfileService] Achievement data:', JSON.stringify(input.achievements, null, 2));
-      
+
       await prisma.achievement.deleteMany({ where: { profileId } });
       console.log(`🏆 [ProfileService] Deleted existing achievements for profile ${profileId}`);
-      
+
       if (input.achievements.length > 0) {
         const achData = input.achievements.map((ach) => ({
           title: ach.title,
@@ -299,7 +299,7 @@ export class ProfileService {
           date: this.parseDate(ach.date),
           profileId,
         }));
-        
+
         await prisma.achievement.createMany({
           data: achData,
         });
@@ -323,7 +323,7 @@ export class ProfileService {
     if (!profile) {
       throw new Error('Profile not found after save');
     }
-    
+
     // Verify all sections were saved
     console.log(`✅ [ProfileService] Profile saved successfully. Final state:`, {
       personalInfo: profile.personalInfo ? 'yes' : 'no',
@@ -335,7 +335,7 @@ export class ProfileService {
       certifications: profile.certifications.length,
       achievements: profile.achievements.length,
     });
-    
+
     return profile;
   }
 
@@ -365,17 +365,17 @@ export class ProfileService {
     let totalWeight = 0;
 
     const weights = {
-      personalInfo: 20,
-      summary: 15,
+      personalInfo: 15,
+      summary: 10,
       skills: 20,
-      experience: 25,
-      education: 10,
+      experience: 30,
+      education: 15,
       projects: 5,
       certifications: 3,
       achievements: 2,
     };
 
-    // Check personal info
+    // Check personal info (15%)
     totalWeight += weights.personalInfo;
     if (profile.personalInfo?.firstName && profile.personalInfo?.lastName && profile.personalInfo?.email) {
       completedWeight += weights.personalInfo;
@@ -383,7 +383,7 @@ export class ProfileService {
       missing.push('Personal Info');
     }
 
-    // Check summary
+    // Check summary (10%)
     totalWeight += weights.summary;
     if (profile.summary && profile.summary.length >= 50) {
       completedWeight += weights.summary;
@@ -391,15 +391,18 @@ export class ProfileService {
       missing.push('Professional Summary');
     }
 
-    // Check skills
+    // Check skills (20%)
     totalWeight += weights.skills;
-    if (profile.skills.length > 0) {
+    if (profile.skills.length >= 5) {
       completedWeight += weights.skills;
+    } else if (profile.skills.length > 0) {
+      completedWeight += weights.skills / 2; // Partial credit
+      missing.push('Add more skills (5+)');
     } else {
       missing.push('Skills');
     }
 
-    // Check experience
+    // Check experience (30%)
     totalWeight += weights.experience;
     if (profile.experiences.length > 0) {
       completedWeight += weights.experience;
@@ -407,7 +410,7 @@ export class ProfileService {
       missing.push('Work Experience');
     }
 
-    // Check education
+    // Check education (15%)
     totalWeight += weights.education;
     if (profile.educations.length > 0) {
       completedWeight += weights.education;
@@ -415,7 +418,7 @@ export class ProfileService {
       missing.push('Education');
     }
 
-    // Optional sections
+    // Optional sections - bonus points up to 100%
     if (profile.projects.length > 0) {
       totalWeight += weights.projects;
       completedWeight += weights.projects;
@@ -431,9 +434,15 @@ export class ProfileService {
       completedWeight += weights.achievements;
     }
 
-    const percent = totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : 0;
+    // Calculate percentage
+    let percent = totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : 0;
 
-    return { percent, missing };
+    // Cap at 70% if no experience (crucial for employability)
+    if (profile.experiences.length === 0 && percent > 70) {
+      percent = 70;
+    }
+
+    return { percent: Math.min(100, percent), missing };
   }
 
   /**

@@ -1,231 +1,110 @@
-# Vetted CV - Resume Intelligence Platform
+# Vetted CV - The Intelligent Career Companion
 
-A production-grade, single-user resume intelligence platform that analyzes job descriptions and generates ATS-optimized, recruiter-approved resumes with evidence-based scoring.
+![Vetted CV Dashboard](frontend/screenshots/dashboard_completeness.png)
 
-## Features
+**Vetted CV** is an AI-powered workspace designed to help job seekers tailor their resumes, track applications, and land their dream jobs. It replaces scattered spreadsheets and generic resume editors with a unified, intelligent workflow.
 
-- **User Authentication** - Secure email/password registration and login
-- **Profile Builder** - Comprehensive multi-step profile creation with skills, experience, education, and more
-- **Job Description Analysis** - AI-powered extraction of keywords, requirements, and responsibilities using OpenAI GPT-4o-mini
-- **Match Analysis** - See how your profile matches against job requirements
-- **Resume Generation** - Create tailored resumes using 5 different strategies
-- **ATS & Recruiter Scoring** - Get instant feedback on resume optimization with AI-powered analysis
-- **Application Tracker** - Track your job applications across different stages with resume linking
-- **Dark Mode** - Full dark mode support
-- **Production Ready** - Security headers, rate limiting, error handling, logging, API documentation, and more
+## 🚀 Why I Built This
 
-## Tech Stack
+Job hunting is a fragmented process. Candidates juggle tailored resumes, application statuses, and job descriptions across multiple platforms. I built **Vetted CV** to solve this by bringing everything into one streamlined ecosystem:
 
-### Frontend
-- Next.js 15 with App Router
-- React 19
-- TypeScript
-- Tailwind CSS
-- Radix UI primitives
-- React Hook Form + Zod
+*   **Problem**: Candidates send generic resumes because tailoring is time-consuming.
+*   **Solution**: "One-Click" AI tailoring that re-writes resumes based on specific job descriptions (JD).
+*   **Problem**: Applicant Tracking Systems (ATS) filter out qualified candidates.
+*   **Solution**: Real-time ATS keyword analysis and scoring against target JDs.
 
-### Backend
-- Node.js + Express.js
-- TypeScript
-- Prisma ORM
-- SQLite database (ready for PostgreSQL migration)
-- Zod validation
-- OpenAI API integration (GPT-4o-mini)
-- JWT authentication
-- Security middleware (Helmet, rate limiting, input sanitization)
-- Comprehensive error handling and logging
+## ✨ Key Features
 
-### Shared
-- TypeScript types and contracts
-- Validation schemas
-- Mock AI algorithms
-- LaTeX templates
+- **🤖 AI-Powered Resume Tailoring**: Instantly re-write bullet points to match job requirements using OpenAI, Claude, or Gemini.
+- **📊 Smart Job Analysis**: Paste a JD to get a breakdown of required skills, keywords, and a "Match Score".
+- **🏆 Gamified Profile Building**: A LinkedIn-style profile builder with a completeness score to ensure you never miss key details.
+- **📋 Kanban Application Tracker**: Visualize your pipeline from "Applied" to "Offer".
+- **📝 Resume Library**: Version control for your resumes - keep track of which version you sent to which company.
 
-## Project Structure
+## 📸 Visual Walkthrough
 
-```
-vetted-cv/
-├── frontend/          # Next.js application
-│   ├── app/          # App Router pages
-│   └── src/          # Components, hooks, services
-├── backend/          # Express.js API
-│   └── src/          # Routes, controllers, services
-├── shared/           # Shared types and constants
-│   ├── types/        # TypeScript types
-│   ├── constants/    # Algorithms, templates
-│   └── validators/   # Zod schemas
-└── prisma/           # Database schema and migrations
-```
+### 1. Job Analysis & Matching
+Analyze a job description to understand exactly what the company is looking for.
+![Job Analysis](frontend/screenshots/job_analysis.png)
 
-## Getting Started
+### 2. Strategy Selection
+Choose how you want to position yourself: **Max ATS** (keyword heavy) or **Recruiter Readability** (human-focused).
+![Resume Strategy](frontend/screenshots/resume_strategy.png)
+
+### 3. Detailed Match Analysis
+See exactly where your profile hits the mark and where you have gaps.
+![Match Analysis](frontend/screenshots/match_analysis.png)
+
+### 4. Application Tracking
+Manage your job hunt like a sales pipeline.
+![Application Tracker](frontend/screenshots/application_tracker.png)
+
+## 🛠️ Tech Stack
+
+**Frontend**
+*   **Next.js 14**: App Router for server-side rendering and performance.
+*   **TypeScript**: Full-stack type safety.
+*   **Tailwind CSS + ShadCN UI**: Rapid, accessible, and beautiful UI development.
+*   **Recharts**: Data visualization for job match scoring.
+
+**Backend**
+*   **Node.js**: Robust runtime.
+*   **PostgreSQL**: Relational data model for complex user/application relationships.
+*   **Prisma ORM**: Type-safe database access.
+
+**AI & Infrastructure**
+*   **Multiple LLM Support**: Pluggable architecture supporting OpenAI, Anthropic, and Google Gemini.
+*   **Vercel AI SDK**: Streaming responses for a responsive user experience.
+
+## 🚀 Getting Started
 
 ### Prerequisites
-
 - Node.js 18+
-- npm or yarn
+- PostgreSQL (Local or Cloud)
 
 ### Installation
 
-1. Clone the repository
-```bash
-cd vetted-cv
-```
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/yourusername/vetted-cv.git
+    cd vetted-cv
+    ```
 
-2. Install dependencies
-```bash
-npm install
-```
+2.  **Install dependencies**
+    ```bash
+    # Root dependencies
+    npm install
+    
+    # Install frontend & backend dependencies
+    cd frontend && npm install
+    cd ../backend && npm install
+    ```
 
-3. Set up environment variables
+3.  **Configure Environment**
+    Copy `.env.example` to `.env` and fill in your keys.
+    ```bash
+    cp .env.example .env
+    ```
 
-Create a `.env` file in the root directory:
-```bash
-# Database
-DATABASE_URL="file:./prisma/dev.db"
+4.  **Database Setup**
+    ```bash
+    # Run migrations
+    npx prisma migrate dev
+    
+    # Seed initial data (optional)
+    npm run seed
+    ```
 
-# JWT Secret (generate a random string)
-JWT_SECRET="your-secret-key-here"
+5.  **Run Development Server**
+    ```bash
+    npm run dev
+    ```
+    Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-# OpenAI API Key (optional - will use mock AI if not provided)
-OPENAI_API_KEY="your-openai-api-key-here"
+## 🤝 Contributing
 
-# Server
-PORT=3001
-NODE_ENV=development
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-4. Generate Prisma client
-```bash
-npm run db:generate
-```
+## 📄 License
 
-5. Run database migrations
-```bash
-npm run db:migrate
-```
-
-6. Seed the database (optional)
-```bash
-npm run db:seed
-```
-
-7. Start development servers
-```bash
-npm run dev
-```
-
-### URLs
-
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
-- Prisma Studio: `npm run db:studio` (http://localhost:5555)
-
-## Available Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start both frontend and backend in development mode |
-| `npm run dev:frontend` | Start only the frontend |
-| `npm run dev:backend` | Start only the backend |
-| `npm run build` | Build all packages for production |
-| `npm run lint` | Run ESLint |
-| `npm run format` | Format code with Prettier |
-| `npm run typecheck` | Type check TypeScript |
-| `npm run db:generate` | Generate Prisma client |
-| `npm run db:migrate` | Run database migrations |
-| `npm run db:seed` | Seed database with sample data |
-| `npm run db:studio` | Open Prisma Studio |
-| `npm run db:reset` | Reset database and re-seed |
-
-## Resume Strategies
-
-| Strategy | Use Case |
-|----------|----------|
-| **Max ATS** | Large companies with automated screening |
-| **Recruiter Readability** | Human-first reviews |
-| **Career Switch** | Changing industries |
-| **Promotion / Internal** | Internal mobility |
-| **Stretch Role** | Applying above your level |
-
-## API Endpoints
-
-### Profile
-- `GET /api/profile` - Get user profile
-- `POST /api/profile/save` - Save profile data
-- `GET /api/profile/completeness` - Get profile completeness
-
-### Job Analysis
-- `POST /api/job/analyze` - Analyze job description
-- `POST /api/job/match` - Match profile to job
-- `GET /api/job/:id` - Get job by ID
-- `GET /api/job` - Get job history
-
-### Resume
-- `POST /api/resume/generate` - Generate resume
-- `POST /api/resume/score` - Score resume
-- `GET /api/resume/history` - Get resume history
-- `GET /api/resume/:id` - Get resume by ID
-- `DELETE /api/resume/:id` - Delete resume
-- `GET /api/resume/:id/download` - Download LaTeX
-
-### Applications
-- `GET /api/applications` - Get all applications
-- `GET /api/applications/stats` - Get statistics
-- `POST /api/applications` - Create application
-- `PUT /api/applications/:id` - Update application
-- `DELETE /api/applications/:id` - Delete application
-
-## Scoring Algorithms
-
-### ATS Score (0-100)
-- Keyword Coverage: 40%
-- Format Compliance: 20%
-- Section Structure: 20%
-- Length Optimization: 20%
-
-### Recruiter Score (0-100)
-- Quantified Metrics: 40%
-- Action Verbs: 30%
-- Readability: 30%
-
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
-- `POST /api/auth/logout` - Logout user
-- `GET /api/auth/me` - Get current user
-
-### Monitoring
-- `GET /api/monitoring/health` - Health check endpoint
-- `GET /api/monitoring/metrics` - Application metrics
-
-### Backup
-- `GET /api/backup/export` - Export database backup
-- `POST /api/backup/import` - Import database backup
-
-## Future Enhancements
-
-- [ ] Social logins (Google, LinkedIn)
-- [ ] Password reset functionality
-- [ ] Cloud database migration (PostgreSQL)
-- [ ] PDF export
-- [ ] Resume comparison view
-- [ ] Interview tracking
-- [ ] Email notifications
-- [ ] Resume templates
-- [ ] Multi-language support
-
-## Known Limitations
-
-- SQLite database (ready for PostgreSQL migration)
-- LaTeX output only (no direct PDF export)
-- Single database instance (no multi-tenancy)
-
-## License
-
-MIT
-
----
-
-**Version:** 1.0.0  
-**Status:** Production Ready (Single-User)
-
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

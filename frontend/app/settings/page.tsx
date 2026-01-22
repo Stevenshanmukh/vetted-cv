@@ -7,12 +7,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
+import { AIProviderCard } from '@/components/settings/AIProviderCard';
+import { ProfileCompleteness } from '@/components/profile/ProfileCompleteness';
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
   const { showToast } = useToast();
-  
+
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [profileStats, setProfileStats] = useState<{
@@ -52,10 +54,17 @@ export default function SettingsPage() {
   return (
     <MainLayout title="Settings">
       <div className="max-w-3xl mx-auto space-y-6">
+
+        {/* AI Providers */}
+        <AIProviderSettings />
+
         {/* Account Information */}
         <Card>
           <CardHeader>
-            <CardTitle icon="person">Account Information</CardTitle>
+            <CardTitle>
+              <span className="material-symbols-outlined mr-2 align-middle">person</span>
+              Account Information
+            </CardTitle>
           </CardHeader>
           <div className="p-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -78,7 +87,10 @@ export default function SettingsPage() {
         {/* Appearance */}
         <Card>
           <CardHeader>
-            <CardTitle icon="palette">Appearance</CardTitle>
+            <CardTitle>
+              <span className="material-symbols-outlined mr-2 align-middle">palette</span>
+              Appearance
+            </CardTitle>
           </CardHeader>
           <div className="p-6 space-y-4">
             <div>
@@ -86,22 +98,20 @@ export default function SettingsPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setTheme('light')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                    resolvedTheme === 'light'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${resolvedTheme === 'light'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
                 >
                   <span className="material-symbols-outlined">light_mode</span>
                   Light
                 </button>
                 <button
                   onClick={() => setTheme('dark')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                    resolvedTheme === 'dark'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${resolvedTheme === 'dark'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
                 >
                   <span className="material-symbols-outlined">dark_mode</span>
                   Dark
@@ -121,30 +131,19 @@ export default function SettingsPage() {
         {/* Profile Data */}
         <Card>
           <CardHeader>
-            <CardTitle icon="folder_data">Profile Data</CardTitle>
+            <CardTitle>
+              <span className="material-symbols-outlined mr-2 align-middle">folder_data</span>
+              Profile Data
+            </CardTitle>
           </CardHeader>
           <div className="p-6 space-y-4">
             {profileStats && (
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-text-secondary dark:text-text-secondary-dark">
-                    Profile Completeness
-                  </span>
-                  <span className="text-sm font-medium text-primary">
-                    {profileStats.percent}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${profileStats.percent}%` }}
-                  />
-                </div>
-                {profileStats.missing.length > 0 && (
-                  <p className="text-xs text-text-muted mt-2">
-                    Missing: {profileStats.missing.join(', ')}
-                  </p>
-                )}
+              <div className="mb-6">
+                <ProfileCompleteness
+                  percent={profileStats.percent}
+                  missing={profileStats.missing}
+                  variant="full"
+                />
               </div>
             )}
 
@@ -153,8 +152,8 @@ export default function SettingsPage() {
                 Clear Profile Data
               </h4>
               <p className="text-sm text-text-secondary dark:text-text-secondary-dark mb-4">
-                This will delete all your profile information including personal info, 
-                experiences, education, skills, projects, certifications, and achievements. 
+                This will delete all your profile information including personal info,
+                experiences, education, skills, projects, certifications, and achievements.
                 This action cannot be undone.
               </p>
 
@@ -197,7 +196,10 @@ export default function SettingsPage() {
         {/* About */}
         <Card>
           <CardHeader>
-            <CardTitle icon="info">About</CardTitle>
+            <CardTitle>
+              <span className="material-symbols-outlined mr-2 align-middle">info</span>
+              About
+            </CardTitle>
           </CardHeader>
           <div className="p-6 space-y-2">
             <div className="flex justify-between">
@@ -216,6 +218,60 @@ export default function SettingsPage() {
         </Card>
       </div>
     </MainLayout>
+  );
+}
+
+function AIProviderSettings() {
+  const [providers, setProviders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadProviders();
+  }, []);
+
+  const loadProviders = async () => {
+    setLoading(true);
+    try {
+      const result = await api.ai.getProviders();
+      if (result.success && result.data) {
+        setProviders(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to load AI providers', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <span className="material-symbols-outlined mr-2 align-middle">smart_toy</span>
+          AI Providers
+        </CardTitle>
+      </CardHeader>
+      <div className="p-6 space-y-6">
+        <p className="text-sm text-text-secondary dark:text-text-secondary-dark">
+          Configure AI providers to power resume optimization, job analysis, and matching.
+          You can use your own API keys for cost control and privacy.
+          <br />
+          <strong>One provider must be active for AI features to work.</strong>
+        </p>
+
+        {loading ? (
+          <div className="flex justify-center p-8">
+            <span className="material-symbols-outlined animate-spin text-primary">progress_activity</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {providers.map(provider => (
+              <AIProviderCard key={provider.id} config={provider} onRefresh={loadProviders} />
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 

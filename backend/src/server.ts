@@ -20,6 +20,8 @@ import resumeRoutes from './routes/resume';
 import applicationRoutes from './routes/applications';
 import monitoringRoutes from './routes/monitoring';
 import backupRoutes from './routes/backup';
+import notificationRoutes from './routes/notifications';
+import aiSettingsRoutes from './routes/aiSettings';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -45,7 +47,7 @@ app.use(cors({
 }));
 
 // Request size limits
-app.use(express.json({ 
+app.use(express.json({
   limit: process.env.MAX_REQUEST_SIZE || '10mb',
   verify: (req: any, res, buf) => {
     // Reject requests that are too large
@@ -105,6 +107,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authLimiter, authRoutes);
 
 // AI-powered endpoints (with cost-control rate limiting)
+app.use('/api/ai', aiSettingsRoutes); // New settings routes
 app.use('/api/job/analyze', aiLimiter);
 app.use('/api/resume/generate', aiLimiter);
 app.use('/api/resume/score', aiLimiter);
@@ -119,6 +122,7 @@ app.use('/api/profile', requireAuth, profileRoutes); // No cache (user edits fre
 app.use('/api/job', requireAuth, cacheMiddleware(2 * 60 * 1000), jobRoutes); // 2 min cache
 app.use('/api/resume', requireAuth, resumeRoutes); // No cache (dynamic content)
 app.use('/api/applications', requireAuth, cacheMiddleware(1 * 60 * 1000), applicationRoutes); // 1 min cache
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/backup', requireAuth, backupRoutes);
 
 // ============================================

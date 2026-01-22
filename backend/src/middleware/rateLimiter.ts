@@ -6,7 +6,7 @@ import rateLimit from 'express-rate-limit';
  */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Limit each IP to 1000 requests per windowMs
   message: {
     success: false,
     error: {
@@ -25,12 +25,12 @@ export const apiLimiter = rateLimit({
  */
 export const authLimiter = rateLimit({
   windowMs: process.env.NODE_ENV === 'production' ? 15 * 60 * 1000 : 1 * 60 * 1000, // 15 min (prod) or 1 min (dev)
-  max: process.env.NODE_ENV === 'production' ? 5 : 50, // More lenient in development
+  max: process.env.NODE_ENV === 'production' ? 5 : 200, // More lenient in development
   message: {
     success: false,
     error: {
       code: 'RATE_LIMIT_EXCEEDED',
-      message: process.env.NODE_ENV === 'production' 
+      message: process.env.NODE_ENV === 'production'
         ? 'Too many authentication attempts, please try again in 15 minutes.'
         : 'Too many authentication attempts, please try again in 1 minute.',
     },
@@ -46,7 +46,7 @@ export const authLimiter = rateLimit({
  */
 export const aiLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // Limit each IP to 20 AI requests per hour
+  max: 100, // Limit each IP to 100 AI requests per hour
   message: {
     success: false,
     error: {

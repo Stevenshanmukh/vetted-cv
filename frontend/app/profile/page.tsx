@@ -405,8 +405,6 @@ export default function ProfileBuilderPage() {
       const validCertifications = certifications.filter(isValidCertification);
       const validAchievements = achievements.filter(isValidAchievement);
 
-      const validAchievements = achievements.filter(isValidAchievement);
-
       const finalData: any = {};
 
       // ===== STEP 1: Personal Info =====
@@ -511,9 +509,6 @@ export default function ProfileBuilderPage() {
 
     const handleSave = async () => {
       try {
-        setSaving(true);
-        const formData = buildFormData();
-
         setSaving(true);
         const formData = buildFormData();
 

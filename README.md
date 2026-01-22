@@ -20,6 +20,7 @@ Job hunting is a fragmented process. Candidates juggle tailored resumes, applica
 - **🏆 Gamified Profile Building**: A LinkedIn-style profile builder with a completeness score to ensure you never miss key details.
 - **📋 Kanban Application Tracker**: Visualize your pipeline from "Applied" to "Offer".
 - **📝 Resume Library**: Version control for your resumes - keep track of which version you sent to which company.
+- **🔑 Bring Your Own Key (BYOK)**: Privacy-first design. Use your own OpenAI, Anthropic, or Google Gemini API keys. Your keys are stored locally/encrypted and never shared.
 
 ## 📸 Visual Walkthrough
 
@@ -38,6 +39,10 @@ See exactly where your profile hits the mark and where you have gaps.
 ### 4. Application Tracking
 Manage your job hunt like a sales pipeline.
 ![Application Tracker](frontend/screenshots/application_tracker.png)
+
+### 5. Multi-Model AI Support (BYOK)
+Configure your preferred AI provider to power the experience. You have full control over your API usage and costs.
+![AI Providers](frontend/screenshots/ai_providers.png)
 
 ## 🛠️ Tech Stack
 
@@ -66,7 +71,7 @@ Manage your job hunt like a sales pipeline.
 
 1.  **Clone the repository**
     ```bash
-    git clone https://github.com/yourusername/vetted-cv.git
+    git clone https://github.com/Stevenshanmukh/vetted-cv.git
     cd vetted-cv
     ```
 
